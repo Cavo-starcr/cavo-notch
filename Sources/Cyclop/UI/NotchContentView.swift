@@ -23,7 +23,7 @@ struct NotchContentView: View {
                 header
                 if isOpen {
                     content
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(.opacity)
                 }
             }
             .frame(width: size.width, height: size.height, alignment: .top)
@@ -35,13 +35,22 @@ struct NotchContentView: View {
         .animation(Theme.tabAnimation, value: vm.tab)
     }
 
-    // MARK: - Header, split by the physical notch
+    // MARK: - Header
+    //
+    // This strip sits directly on top of the menu bar. Menu bar utilities such
+    // as Ice watch for clicks there with a global event monitor — a passive
+    // observer that sees the click no matter which window consumes it — so
+    // clicking here toggles them as a side effect. Nothing interactive goes in
+    // this row; the tab switcher lives in the rail below.
 
     private var header: some View {
         HStack(spacing: 0) {
             if isOpen {
-                tabs
-                    .padding(.leading, 14)
+                Text(vm.tab.title.uppercased())
+                    .font(.system(size: 9, weight: .semibold))
+                    .tracking(0.8)
+                    .foregroundStyle(Theme.tertiary)
+                    .padding(.leading, 16)
                     .transition(.opacity)
             }
             Spacer(minLength: 0)
@@ -54,28 +63,6 @@ struct NotchContentView: View {
             }
         }
         .frame(height: vm.geometry.notchSize.height)
-    }
-
-    private var tabs: some View {
-        HStack(spacing: 2) {
-            ForEach(NotchViewModel.Tab.allCases) { tab in
-                Button {
-                    vm.tab = tab
-                } label: {
-                    Image(systemName: tab.symbol)
-                        .font(.system(size: 11, weight: .medium))
-                        .frame(width: 26, height: 20)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(vm.tab == tab ? Theme.surfaceHover : .clear)
-                        )
-                        .foregroundStyle(vm.tab == tab ? Color.white : Theme.tertiary)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(tab.title)
-            }
-        }
     }
 
     @ViewBuilder
@@ -91,11 +78,16 @@ struct NotchContentView: View {
                     .foregroundStyle(Theme.tertiary)
             }
         case .shelf:
-            Text(vm.shelf.items.isEmpty ? "" : "\(vm.shelf.items.count)")
-                .font(.system(size: 10, weight: .medium).monospacedDigit())
-                .foregroundStyle(Theme.tertiary)
+            counter(vm.shelf.items.count)
         case .clipboard:
-            Text(vm.clipboard.items.isEmpty ? "" : "\(vm.clipboard.items.count)")
+            counter(vm.clipboard.items.count)
+        }
+    }
+
+    @ViewBuilder
+    private func counter(_ value: Int) -> some View {
+        if value > 0 {
+            Text("\(value)")
                 .font(.system(size: 10, weight: .medium).monospacedDigit())
                 .foregroundStyle(Theme.tertiary)
         }
@@ -104,8 +96,43 @@ struct NotchContentView: View {
     // MARK: - Body
 
     private var content: some View {
-        // Panes slide in from the side the new tab sits on, and the old one
-        // leaves the opposite way — the motion matches the tab bar.
+        HStack(spacing: 14) {
+            rail
+            panes
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 18)
+        .padding(.bottom, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var rail: some View {
+        VStack(spacing: 6) {
+            ForEach(NotchViewModel.Tab.allCases) { tab in
+                Button {
+                    vm.tab = tab
+                } label: {
+                    Image(systemName: tab.symbol)
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 30, height: 28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(vm.tab == tab ? Theme.surfaceHover : .clear)
+                        )
+                        .foregroundStyle(vm.tab == tab ? Color.white : Theme.tertiary)
+                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .help(tab.title)
+            }
+        }
+        .frame(width: 30)
+        .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private var panes: some View {
+        // Sideways, never from the top: the new pane enters from the side it
+        // is moving towards and the old one leaves the opposite way.
         let edge: Edge = vm.slidesForward ? .trailing : .leading
         let opposite: Edge = vm.slidesForward ? .leading : .trailing
 
@@ -118,8 +145,6 @@ struct NotchContentView: View {
                 ))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 18)
-        .padding(.bottom, 14)
         .clipped()
     }
 
