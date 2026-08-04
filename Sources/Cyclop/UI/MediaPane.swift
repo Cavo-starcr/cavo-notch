@@ -93,12 +93,12 @@ struct MediaPane: View {
 
                 ZStack(alignment: .leading) {
                     Capsule().fill(Theme.surface).frame(height: height)
+                    // Deliberately unanimated: a seek has to land under the
+                    // cursor at once. Smoothness comes from the tick rate
+                    // instead, which keeps each step well under a pixel.
                     Capsule()
                         .fill(Color.white.opacity(0.9))
                         .frame(width: filled, height: height)
-                        // The clock ticks twice a second; without this the bar
-                        // would advance in visible steps.
-                        .animation(.linear(duration: 0.5), value: filled)
                     if scrubHover {
                         Circle()
                             .fill(.white)

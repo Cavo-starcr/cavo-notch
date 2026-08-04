@@ -221,7 +221,9 @@ final class MediaController: ObservableObject {
         ticker?.invalidate()
         ticker = nil
         guard isPlaying else { return }
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+        // Four times a second: the bar advances in sub-pixel steps, so it reads
+        // as smooth without any animation smoothing the seek away with it.
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
         RunLoop.main.add(timer, forMode: .common)
