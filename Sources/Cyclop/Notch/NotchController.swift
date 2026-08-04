@@ -127,9 +127,12 @@ final class NotchController {
         } else {
             withAnimation(Theme.openAnimation) { vm.isOpen = false }
             vm.media.setActive(false)
+            // Shrink only once the panel has finished collapsing. Doing it
+            // while it is still visibly there would leave a window in which
+            // clicks land on whatever is behind the panel.
             let work = DispatchWorkItem { [weak self] in self?.applyActiveRect(open: false) }
             closeActiveRectWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
         }
     }
 

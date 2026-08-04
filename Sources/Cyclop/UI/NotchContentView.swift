@@ -32,7 +32,7 @@ struct NotchContentView: View {
         .frame(width: size.width + 2 * topRadius, height: size.height, alignment: .top)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(Theme.openAnimation, value: isOpen)
-        .animation(Theme.contentAnimation, value: vm.tab)
+        .animation(Theme.tabAnimation, value: vm.tab)
     }
 
     // MARK: - Header, split by the physical notch
@@ -82,9 +82,14 @@ struct NotchContentView: View {
     private var trailing: some View {
         switch vm.tab {
         case .media:
-            Text(vm.media.sourceName ?? "")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Theme.tertiary)
+            HStack(spacing: 6) {
+                if vm.media.track != nil {
+                    EqualizerBars(isAnimating: vm.media.isPlaying)
+                }
+                Text(vm.media.sourceName ?? "")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.tertiary)
+            }
         case .shelf:
             Text(vm.shelf.items.isEmpty ? "" : "\(vm.shelf.items.count)")
                 .font(.system(size: 10, weight: .medium).monospacedDigit())
@@ -98,20 +103,35 @@ struct NotchContentView: View {
 
     // MARK: - Body
 
-    @ViewBuilder
     private var content: some View {
-        Group {
-            switch vm.tab {
-            case .media:
-                MediaPane(media: vm.media)
-            case .shelf:
-                ShelfPane(shelf: vm.shelf, isTargeted: vm.isDropTargeted)
-            case .clipboard:
-                ClipboardPane(clipboard: vm.clipboard)
-            }
+        // Panes slide in from the side the new tab sits on, and the old one
+        // leaves the opposite way — the motion matches the tab bar.
+        let edge: Edge = vm.slidesForward ? .trailing : .leading
+        let opposite: Edge = vm.slidesForward ? .leading : .trailing
+
+        return ZStack {
+            pane
+                .id(vm.tab)
+                .transition(.asymmetric(
+                    insertion: .move(edge: edge).combined(with: .opacity),
+                    removal: .move(edge: opposite).combined(with: .opacity)
+                ))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 18)
         .padding(.bottom, 14)
+        .clipped()
+    }
+
+    @ViewBuilder
+    private var pane: some View {
+        switch vm.tab {
+        case .media:
+            MediaPane(media: vm.media)
+        case .shelf:
+            ShelfPane(shelf: vm.shelf, isTargeted: vm.isDropTargeted)
+        case .clipboard:
+            ClipboardPane(clipboard: vm.clipboard)
+        }
     }
 }

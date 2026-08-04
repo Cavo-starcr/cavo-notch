@@ -115,11 +115,28 @@ final class MediaController: ObservableObject {
 
         if let data = snapshot.artwork {
             artworkKey = key
-            artwork = NSImage(data: data)
+            decodeArtwork(data, for: key)
         } else if artworkKey != key {
-            // Track changed and the payload carried no artwork.
+            // Track changed and the payload carried no artwork; the skeleton
+            // covers the gap until the system publishes the new cover.
             artworkKey = key
             artwork = nil
+        }
+    }
+
+    /// JPEG decoding on the main thread is what makes a track change stutter,
+    /// so it happens off it and the finished image is handed back.
+    private func decodeArtwork(_ data: Data, for key: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let rep = NSBitmapImageRep(data: data), let cgImage = rep.cgImage else { return }
+            let image = NSImage(
+                cgImage: cgImage,
+                size: NSSize(width: rep.pixelsWide, height: rep.pixelsHigh)
+            )
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.artworkKey == key else { return }
+                self.artwork = image
+            }
         }
     }
 

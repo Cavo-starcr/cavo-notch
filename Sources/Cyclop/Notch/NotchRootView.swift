@@ -21,6 +21,10 @@ final class NotchRootView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not supported") }
 
+    /// The app never becomes active, so without this the first click on the
+    /// panel would be spent activating instead of hitting the control.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         // While a drag is in flight the whole window must stay a valid target,
         // otherwise AppKit drops us as the destination mid-animation.
