@@ -53,7 +53,7 @@ enum PlayerBridge {
 
     static func state(of app: PlayerApp, completion: @escaping (PlayerState?) -> Void) {
         guard app.isRunning else { return completion(nil) }
-        run(script: stateScript(for: app)) { descriptor in
+        runScript(stateScript(for: app)) { descriptor in
             guard let raw = descriptor?.stringValue, !raw.isEmpty else { return completion(nil) }
             completion(parse(raw, app: app))
         }
@@ -96,7 +96,7 @@ enum PlayerBridge {
 
     private static func command(_ body: String, on app: PlayerApp) {
         guard app.isRunning else { return }
-        run(script: """
+        runScript("""
         tell application id "\(app.bundleID)"
             \(body)
         end tell
@@ -138,7 +138,7 @@ enum PlayerBridge {
                 DispatchQueue.main.async { completion(image) }
             }.resume()
         case .music:
-            run(script: """
+            runScript("""
             tell application id "com.apple.Music"
                 if (count of artworks of current track) is 0 then return missing value
                 return raw data of artwork 1 of current track
@@ -209,7 +209,8 @@ enum PlayerBridge {
         )
     }
 
-    private static func run(script source: String, completion: @escaping (NSAppleEventDescriptor?) -> Void) {
+    /// Shared AppleScript runner: one serial queue for every script the app sends.
+    static func runScript(_ source: String, completion: @escaping (NSAppleEventDescriptor?) -> Void) {
         queue.async {
             var error: NSDictionary?
             let result = NSAppleScript(source: source)?.executeAndReturnError(&error)

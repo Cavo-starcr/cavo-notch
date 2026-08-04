@@ -98,18 +98,35 @@ struct MediaPane: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    @ViewBuilder
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "music.note.list")
-                .font(.system(size: 22, weight: .light))
-                .foregroundStyle(Theme.tertiary)
-            Text("Ничего не играет")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Theme.secondary)
-            Text("Запусти Apple Music или Spotify — трек появится здесь.")
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.tertiary)
+        if let hint = media.setupHint {
+            VStack(spacing: 8) {
+                Image(systemName: "questionmark.app.dashed")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundStyle(Theme.tertiary)
+                Text("Браузер не отдает название трека")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+                Text(hint)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            VStack(spacing: 8) {
+                Image(systemName: "music.note.list")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundStyle(Theme.tertiary)
+                Text("Ничего не играет")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+                Text("Включи музыку в Apple Music, Spotify или браузере.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

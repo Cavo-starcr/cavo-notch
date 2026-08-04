@@ -19,10 +19,14 @@ final class MediaController: ObservableObject {
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var position: TimeInterval = 0
     @Published private(set) var sourceName: String?
+    /// Set when a browser is playing but refuses JavaScript from Apple Events.
+    @Published private(set) var setupHint: String?
 
     /// Set once MediaRemote is confirmed to actually return data on this system.
     private var mediaRemoteWorks = false
     private var activeApp: PlayerApp?
+    private var activeBrowser: BrowserPlayback?
+    private var pollTimer: Timer?
     private var artworkKey: String?
     private var anchor: (position: TimeInterval, at: Date)?
     private var ticker: Timer?
@@ -60,6 +64,20 @@ final class MediaController: ObservableObject {
         refresh()
     }
 
+    /// Browsers cannot notify us, so they are polled — but only while the
+    /// panel is open, which is the only time the track is on screen.
+    func setActive(_ active: Bool) {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        guard active else { return }
+        refresh()
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pollTimer = timer
+    }
+
     func stop() {
         observers.forEach {
             DistributedNotificationCenter.default().removeObserver($0)
@@ -69,6 +87,8 @@ final class MediaController: ObservableObject {
         observers.removeAll()
         ticker?.invalidate()
         ticker = nil
+        pollTimer?.invalidate()
+        pollTimer = nil
     }
 
     // MARK: - Transport
@@ -95,7 +115,11 @@ final class MediaController: ObservableObject {
         let clamped = min(max(0, seconds), duration)
         position = clamped
         setAnchor(clamped)
-        if let activeApp { PlayerBridge.seek(activeApp, to: clamped) }
+        if let activeApp {
+            PlayerBridge.seek(activeApp, to: clamped)
+        } else if let activeBrowser {
+            BrowserBridge.seek(activeBrowser, to: clamped)
+        }
     }
 
     private func dispatch(
@@ -105,6 +129,9 @@ final class MediaController: ObservableObject {
     ) {
         if let activeApp {
             script(activeApp)
+        } else if let activeBrowser, key == .playPause {
+            BrowserBridge.playPause(activeBrowser)
+            refreshSoon()
         } else if mediaRemoteWorks {
             MediaRemoteBridge.shared.send(remote)
         } else {
@@ -164,34 +191,71 @@ final class MediaController: ObservableObject {
     private func refreshFromPlayers() {
         PlayerBridge.currentState { [weak self] state in
             guard let self else { return }
-            guard let state else {
-                self.activeApp = nil
-                self.track = nil
-                self.artwork = nil
-                self.artworkKey = nil
-                self.isPlaying = false
-                self.duration = 0
-                self.position = 0
-                self.sourceName = nil
-                self.updateTicker()
-                return
+            // A playing app wins outright; otherwise look in the browser before
+            // settling for a player that is merely paused.
+            if let state, state.isPlaying { return self.apply(state) }
+            BrowserBridge.currentPlayback { [weak self] browser in
+                guard let self else { return }
+                self.setupHint = BrowserBridge.setupHint
+                if let browser { return self.apply(browser) }
+                if let state { return self.apply(state) }
+                self.clear()
             }
+        }
+    }
 
-            self.activeApp = state.app
-            self.sourceName = state.app.displayName
-            self.track = Track(title: state.title, artist: state.artist, album: state.album, key: state.key)
-            self.isPlaying = state.isPlaying
-            self.duration = state.duration
-            self.setAnchor(state.position)
-            self.updateTicker()
+    private func clear() {
+        activeApp = nil
+        activeBrowser = nil
+        track = nil
+        artwork = nil
+        artworkKey = nil
+        isPlaying = false
+        duration = 0
+        position = 0
+        sourceName = nil
+        updateTicker()
+    }
 
-            guard self.artworkKey != state.key else { return }
-            self.artworkKey = state.key
-            self.artwork = nil
-            PlayerBridge.artwork(for: state) { [weak self] image in
-                guard let self, self.artworkKey == state.key else { return }
+    private func apply(_ browser: BrowserPlayback) {
+        activeApp = nil
+        activeBrowser = browser
+        sourceName = browser.browser.displayName
+        track = Track(title: browser.title, artist: browser.artist, album: browser.album, key: browser.key)
+        isPlaying = browser.isPlaying
+        duration = browser.duration
+        setAnchor(browser.position)
+        updateTicker()
+
+        guard artworkKey != browser.key else { return }
+        artworkKey = browser.key
+        artwork = nil
+        guard let url = browser.artworkURL else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            let image = data.flatMap(NSImage.init(data:))
+            DispatchQueue.main.async {
+                guard let self, self.artworkKey == browser.key else { return }
                 self.artwork = image
             }
+        }.resume()
+    }
+
+    private func apply(_ state: PlayerState) {
+        activeBrowser = nil
+        activeApp = state.app
+        sourceName = state.app.displayName
+        track = Track(title: state.title, artist: state.artist, album: state.album, key: state.key)
+        isPlaying = state.isPlaying
+        duration = state.duration
+        setAnchor(state.position)
+        updateTicker()
+
+        guard artworkKey != state.key else { return }
+        artworkKey = state.key
+        artwork = nil
+        PlayerBridge.artwork(for: state) { [weak self] image in
+            guard let self, self.artworkKey == state.key else { return }
+            self.artwork = image
         }
     }
 

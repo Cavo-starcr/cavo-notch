@@ -123,8 +123,10 @@ final class NotchController {
             // through a region the animation has not covered yet.
             applyActiveRect(open: true)
             withAnimation(Theme.openAnimation) { vm.isOpen = true }
+            vm.media.setActive(true)
         } else {
             withAnimation(Theme.openAnimation) { vm.isOpen = false }
+            vm.media.setActive(false)
             let work = DispatchWorkItem { [weak self] in self?.applyActiveRect(open: false) }
             closeActiveRectWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.26, execute: work)
