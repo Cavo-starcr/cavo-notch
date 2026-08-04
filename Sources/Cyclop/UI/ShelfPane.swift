@@ -104,6 +104,17 @@ private struct ShelfCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.white.opacity(isSelected ? 0.55 : 0), lineWidth: 1.5)
+                .allowsHitTesting(false)
+        )
+        // Owns clicks and drags: a group drag needs one dragging item per file,
+        // which SwiftUI's onDrag cannot express. It must stay *below* the close
+        // button, otherwise it swallows every click aimed at it.
+        .overlay(
+            ShelfDragSource(
+                urls: { shelf.dragURLs(startingAt: item) },
+                onClick: { modifiers in shelf.select(item, modifiers: modifiers) },
+                onDoubleClick: { shelf.open(item) }
+            )
         )
         .overlay(alignment: .topLeading) {
             if isSelected {
@@ -111,6 +122,7 @@ private struct ShelfCard: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.white)
                     .padding(4)
+                    .allowsHitTesting(false)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -124,15 +136,6 @@ private struct ShelfCard: View {
                 .padding(4)
             }
         }
-        .overlay(
-            // Owns clicks and drags: a group drag needs one dragging item per
-            // file, which SwiftUI's onDrag cannot express.
-            ShelfDragSource(
-                urls: { shelf.dragURLs(startingAt: item) },
-                onClick: { modifiers in shelf.select(item, modifiers: modifiers) },
-                onDoubleClick: { shelf.open(item) }
-            )
-        )
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onHover { hovering = $0 }
         .contextMenu {

@@ -33,11 +33,23 @@ final class NotchViewModel: ObservableObject {
     let shelf: ShelfStore
     let clipboard: ClipboardStore
 
+    private var cancellables = Set<AnyCancellable>()
+
     init(geometry: NotchGeometry) {
         self.geometry = geometry
         self.media = MediaController()
         self.shelf = ShelfStore()
         self.clipboard = ClipboardStore()
+
+        // The panel header reads through to the stores — counters, the source
+        // name, the equalizer. Nested ObservableObjects do not propagate on
+        // their own, so those would only refresh when something else happened
+        // to redraw the view.
+        for child in [media.objectWillChange, shelf.objectWillChange, clipboard.objectWillChange] {
+            child
+                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &cancellables)
+        }
     }
 
     /// Size of the visible body for the current state.
