@@ -94,6 +94,9 @@ final class ClipboardStore: ObservableObject {
         lastChangeCount = pasteboard.changeCount
 
         guard pasteboard.data(forType: concealed) == nil else { return }
+        // Our own write — copying a screenshot back out of the shelf must not
+        // save it to disk all over again.
+        guard pasteboard.data(forType: .cyclopInternal) == nil else { return }
 
         // A copied file arrives as a URL, not as image data, so URLs win first.
         let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]

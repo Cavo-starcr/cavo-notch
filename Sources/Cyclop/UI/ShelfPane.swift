@@ -136,6 +136,7 @@ private struct ShelfCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onHover { hovering = $0 }
         .contextMenu {
+            Button("Копировать") { shelf.copy(item) }
             Button("Открыть") { shelf.open(item) }
             Button("Показать в Finder") { shelf.reveal(item) }
             Divider()

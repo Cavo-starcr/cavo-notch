@@ -1,5 +1,11 @@
 import AppKit
 import QuickLookThumbnailing
+import UniformTypeIdentifiers
+
+extension NSPasteboard.PasteboardType {
+    /// Marker Cyclop puts on pasteboard writes of its own.
+    static let cyclopInternal = NSPasteboard.PasteboardType("com.cyclop.internal")
+}
 
 struct ShelfItem: Identifiable, Equatable {
     let id = UUID()
@@ -105,6 +111,22 @@ final class ShelfStore: ObservableObject {
 
     func reveal(_ item: ShelfItem) {
         NSWorkspace.shared.activateFileViewerSelecting([item.url])
+    }
+
+    /// Puts the card back on the pasteboard. Images go as image data as well as
+    /// a file reference, so pasting works both in Finder and in an editor.
+    func copy(_ item: ShelfItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        // Tells ClipboardStore this change came from us, so a copied screenshot
+        // is not saved to disk a second time.
+        pasteboard.setData(Data(), forType: .cyclopInternal)
+        pasteboard.writeObjects([item.url as NSURL])
+        if let type = UTType(filenameExtension: item.url.pathExtension),
+           type.conforms(to: .image),
+           let data = try? Data(contentsOf: item.url) {
+            pasteboard.setData(data, forType: type == .png ? .png : .tiff)
+        }
     }
 
     func open(_ item: ShelfItem) {
