@@ -27,6 +27,8 @@ final class MediaController: ObservableObject {
     private var activeApp: PlayerApp?
     private var artworkKey: String?
     private var anchor: (position: TimeInterval, at: Date)?
+    /// Where we asked the player to jump, and when — see `apply`.
+    private var pendingSeek: (target: TimeInterval, at: Date)?
     private var ticker: Timer?
     private var observers: [Any] = []
 
@@ -77,8 +79,8 @@ final class MediaController: ObservableObject {
     func seek(to seconds: TimeInterval) {
         guard duration > 0 else { return }
         let clamped = min(max(0, seconds), duration)
-        position = clamped
         setAnchor(clamped)
+        pendingSeek = (clamped, Date())
         if feedAvailable {
             feed.seek(to: clamped)
         } else if let activeApp {
@@ -109,8 +111,20 @@ final class MediaController: ObservableObject {
         track = Track(title: snapshot.title, artist: snapshot.artist, album: snapshot.album, key: key)
         isPlaying = snapshot.isPlaying || snapshot.rate > 0
         duration = snapshot.duration
-        setAnchor(snapshot.elapsed)
         sourceName = snapshot.source
+
+        // A player needs a moment to act on a seek, and until it does it keeps
+        // reporting the old position. Accepting that would yank the bar back.
+        if let pending = pendingSeek {
+            let settled = abs(snapshot.elapsed - pending.target) < 2.5
+            let expired = Date().timeIntervalSince(pending.at) > 1.5
+            if settled || expired {
+                pendingSeek = nil
+                setAnchor(snapshot.elapsed)
+            }
+        } else {
+            setAnchor(snapshot.elapsed)
+        }
         updateTicker()
 
         if let data = snapshot.artwork {

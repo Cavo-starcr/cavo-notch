@@ -53,11 +53,19 @@ struct ShelfPane: View {
     }
 
     private var footer: some View {
-        HStack {
-            Text("Тяни карточку наружу, чтобы переместить файл")
+        HStack(spacing: 10) {
+            Text(shelf.selection.isEmpty
+                 ? "Клик — выбрать, ⌘-клик — несколько; тяни наружу"
+                 : "Выбрано: \(shelf.selection.count) — тяни любую из них")
                 .font(.system(size: 9))
                 .foregroundStyle(Theme.tertiary)
             Spacer()
+            if !shelf.selection.isEmpty {
+                Button("Снять выбор") { shelf.clearSelection() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+            }
             Button("Очистить") { shelf.clear() }
                 .buttonStyle(.plain)
                 .font(.system(size: 10, weight: .medium))
@@ -71,6 +79,8 @@ private struct ShelfCard: View {
     let item: ShelfItem
     @ObservedObject var shelf: ShelfStore
     @State private var hovering = false
+
+    private var isSelected: Bool { shelf.isSelected(item) }
 
     var body: some View {
         VStack(spacing: 6) {
@@ -89,8 +99,20 @@ private struct ShelfCard: View {
         .frame(width: 86, height: 92)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(hovering ? Theme.surfaceHover : Theme.surface)
+                .fill(isSelected ? Color.white.opacity(0.18) : (hovering ? Theme.surfaceHover : Theme.surface))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.white.opacity(isSelected ? 0.55 : 0), lineWidth: 1.5)
+        )
+        .overlay(alignment: .topLeading) {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white)
+                    .padding(4)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if hovering {
                 Button { shelf.remove(item) } label: {
@@ -102,18 +124,24 @@ private struct ShelfCard: View {
                 .padding(4)
             }
         }
+        .overlay(
+            // Owns clicks and drags: a group drag needs one dragging item per
+            // file, which SwiftUI's onDrag cannot express.
+            ShelfDragSource(
+                urls: { shelf.dragURLs(startingAt: item) },
+                onClick: { modifiers in shelf.select(item, modifiers: modifiers) },
+                onDoubleClick: { shelf.open(item) }
+            )
+        )
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onHover { hovering = $0 }
-        .onTapGesture(count: 2) { shelf.open(item) }
         .contextMenu {
             Button("Открыть") { shelf.open(item) }
             Button("Показать в Finder") { shelf.reveal(item) }
             Divider()
             Button("Убрать с полки") { shelf.remove(item) }
         }
-        .onDrag {
-            NSItemProvider(contentsOf: item.url) ?? NSItemProvider()
-        }
         .animation(Theme.contentAnimation, value: hovering)
+        .animation(Theme.contentAnimation, value: isSelected)
     }
 }

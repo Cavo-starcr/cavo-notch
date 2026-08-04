@@ -14,6 +14,8 @@ struct ShelfItem: Identifiable, Equatable {
 @MainActor
 final class ShelfStore: ObservableObject {
     @Published private(set) var items: [ShelfItem] = []
+    /// Cards picked for a group drag. Empty means "drag whatever is grabbed".
+    @Published private(set) var selection: Set<UUID> = []
 
     private let defaultsKey = "shelf.urls"
     private let limit = 24
@@ -36,12 +38,42 @@ final class ShelfStore: ObservableObject {
 
     func remove(_ item: ShelfItem) {
         items.removeAll { $0.id == item.id }
+        selection.remove(item.id)
         persist()
     }
 
     func clear() {
         items.removeAll()
+        selection.removeAll()
         persist()
+    }
+
+    // MARK: - Selection
+
+    /// Plain click replaces the selection; ⌘ or ⇧ adds to it, matching Finder.
+    func select(_ item: ShelfItem, modifiers: NSEvent.ModifierFlags) {
+        if modifiers.contains(.command) || modifiers.contains(.shift) {
+            if selection.contains(item.id) {
+                selection.remove(item.id)
+            } else {
+                selection.insert(item.id)
+            }
+        } else if selection == [item.id] {
+            selection.removeAll()
+        } else {
+            selection = [item.id]
+        }
+    }
+
+    func isSelected(_ item: ShelfItem) -> Bool { selection.contains(item.id) }
+
+    func clearSelection() { selection.removeAll() }
+
+    /// Files a drag started on `item` should carry: the whole selection when
+    /// the grabbed card belongs to it, otherwise just that card.
+    func dragURLs(startingAt item: ShelfItem) -> [URL] {
+        guard selection.contains(item.id) else { return [item.url] }
+        return items.filter { selection.contains($0.id) }.map(\.url)
     }
 
     func reveal(_ item: ShelfItem) {

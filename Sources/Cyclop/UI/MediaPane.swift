@@ -7,6 +7,10 @@ struct MediaPane: View {
     /// Set while dragging, so the bar follows the finger instead of the clock.
     @State private var scrubbing: Double?
 
+    /// Artwork and the text column share this height, so their top and bottom
+    /// edges line up instead of the column floating past them.
+    private let blockHeight: CGFloat = 122
+
     var body: some View {
         if let track = media.track {
             HStack(spacing: 18) {
@@ -22,14 +26,14 @@ struct MediaPane: View {
                         .lineLimit(1)
                         .padding(.top, 3)
 
-                    Spacer(minLength: 10)
-                    scrubber
-                    Spacer(minLength: 14)
+                    Spacer(minLength: 6)
                     controls
+                    Spacer(minLength: 6)
+                    scrubber
                 }
-                .frame(maxHeight: .infinity)
+                .frame(height: blockHeight)
             }
-            .padding(.top, 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Title and artist arrive together, so the whole column can cross-
             // fade as one unit when the track changes.
             .animation(Theme.artworkAnimation, value: track.key)
@@ -89,7 +93,12 @@ struct MediaPane: View {
 
                 ZStack(alignment: .leading) {
                     Capsule().fill(Theme.surface).frame(height: height)
-                    Capsule().fill(Color.white.opacity(0.9)).frame(width: filled, height: height)
+                    Capsule()
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: filled, height: height)
+                        // The clock ticks twice a second; without this the bar
+                        // would advance in visible steps.
+                        .animation(.linear(duration: 0.5), value: filled)
                     if scrubHover {
                         Circle()
                             .fill(.white)
@@ -110,8 +119,11 @@ struct MediaPane: View {
                         .onEnded { value in
                             guard width > 0 else { return }
                             let target = min(max(value.location.x / width, 0), 1)
-                            scrubbing = nil
+                            // Seek first: clearing `scrubbing` beforehand would
+                            // drop the bar back to the old position for a frame
+                            // before the new one lands.
                             media.seek(to: media.duration * target)
+                            scrubbing = nil
                         }
                 )
                 .animation(Theme.contentAnimation, value: scrubHover)
