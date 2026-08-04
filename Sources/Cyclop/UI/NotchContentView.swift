@@ -82,6 +82,12 @@ struct NotchContentView: View {
             counter(vm.shelf.items.count)
         case .clipboard:
             counter(vm.clipboard.items.count)
+        case .calendar:
+            if let next = vm.calendar.next {
+                Text(CalendarPane.countdown(to: next, from: vm.calendar.now))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(next.isRunning ? Color.white.opacity(0.8) : Theme.tertiary)
+            }
         }
     }
 
@@ -159,6 +165,8 @@ struct NotchContentView: View {
             ShelfPane(shelf: vm.shelf, isTargeted: vm.isDropTargeted)
         case .clipboard:
             ClipboardPane(clipboard: vm.clipboard)
+        case .calendar:
+            CalendarPane(calendar: vm.calendar)
         }
     }
 }

@@ -1,0 +1,208 @@
+import SwiftUI
+
+struct CalendarPane: View {
+    @ObservedObject var calendar: CalendarStore
+
+    var body: some View {
+        switch calendar.access {
+        case .notRequested:
+            permissionPrompt
+        case .denied:
+            deniedState
+        case .granted:
+            if let next = calendar.next {
+                agenda(next: next)
+            } else {
+                emptyState
+            }
+        }
+    }
+
+    // MARK: - Agenda
+
+    private func agenda(next: CalendarStore.Meeting) -> some View {
+        HStack(alignment: .top, spacing: 18) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(Color(next.calendarColor))
+                        .frame(width: 7, height: 7)
+                    Text(next.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                }
+                Text(subtitle(for: next))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(1)
+                    .padding(.top, 4)
+                    .padding(.leading, 14)
+
+                Spacer(minLength: 10)
+
+                if let link = next.link {
+                    Button {
+                        calendar.join(next)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "video.fill").font(.system(size: 10))
+                            Text(next.provider.map { "Подключиться · \($0)" } ?? "Подключиться")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule().fill(next.isRunning ? Color.white.opacity(0.92) : Theme.surfaceHover)
+                        )
+                        .foregroundStyle(next.isRunning ? .black : .white)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 14)
+                    .help(link.absoluteString)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            rest
+        }
+        .padding(.top, 4)
+    }
+
+    /// Everything after the next meeting, as a column on the right.
+    private var rest: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(calendar.upcoming.prefix(4)) { meeting in
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(Color(meeting.calendarColor))
+                        .frame(width: 5, height: 5)
+                    Text(Self.clock.string(from: meeting.start))
+                        .font(.system(size: 10, weight: .medium).monospacedDigit())
+                        .foregroundStyle(Theme.secondary)
+                        .frame(width: 34, alignment: .leading)
+                        .opacity(Foundation.Calendar.current.isDateInToday(meeting.start) ? 1 : 0.6)
+                    Text(meeting.title)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(Theme.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            if calendar.upcoming.isEmpty {
+                Text("Других встреч на неделе нет")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiary)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(width: 230, alignment: .leading)
+    }
+
+    private func subtitle(for meeting: CalendarStore.Meeting) -> String {
+        var parts = [Self.day(for: meeting.start)].compactMap { $0 }
+        parts.append("\(Self.clock.string(from: meeting.start))–\(Self.clock.string(from: meeting.end))")
+        if let provider = meeting.provider { parts.append(provider) }
+        return parts.joined(separator: " · ")
+    }
+
+    static let clock: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private static let weekday: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateFormat = "EEEE, d MMMM"
+        return formatter
+    }()
+
+    /// Nothing for today — the time alone says it. A word for tomorrow, a full
+    /// date for anything further out.
+    static func day(for date: Date) -> String? {
+        let calendar = Foundation.Calendar.current
+        if calendar.isDateInToday(date) { return nil }
+        if calendar.isDateInTomorrow(date) { return "завтра" }
+        return weekday.string(from: date)
+    }
+
+    /// "через 12 мин" / "идёт сейчас" — shown in the panel header.
+    static func countdown(to meeting: CalendarStore.Meeting, from now: Date) -> String {
+        if meeting.isRunning { return "идёт сейчас" }
+        let minutes = Int((meeting.start.timeIntervalSince(now) / 60).rounded(.up))
+        if minutes <= 0 { return "вот-вот" }
+        if minutes < 60 { return "через \(minutes) мин" }
+        let hours = minutes / 60
+        if hours < 24 {
+            let rest = minutes % 60
+            return rest == 0 ? "через \(hours) ч" : "через \(hours) ч \(rest) мин"
+        }
+        let days = hours / 24
+        return days == 1 ? "завтра" : "через \(days) дн"
+    }
+
+    // MARK: - States
+
+    private var permissionPrompt: some View {
+        VStack(spacing: 9) {
+            Image(systemName: "calendar")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(Theme.tertiary)
+            Text("Показать ближайшие встречи")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.secondary)
+            Text("Нужен доступ к Календарю. Это единственное разрешение,\nкоторое просит Cyclop — и только для этой вкладки.")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiary)
+                .multilineTextAlignment(.center)
+            // Padding and background belong inside the label: with .plain the
+            // hit area is the label itself, so decorating the Button from the
+            // outside leaves a capsule that only responds on its lettering.
+            Button {
+                calendar.requestAccess()
+            } label: {
+                Text("Разрешить")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Theme.surfaceHover))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var deniedState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(Theme.tertiary)
+            Text("Доступ к Календарю закрыт")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.secondary)
+            Text("Настройки → Конфиденциальность → Календари")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(Theme.tertiary)
+            Text("Встреч больше нет")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.secondary)
+            Text("В ближайшие сутки календарь пуст")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
