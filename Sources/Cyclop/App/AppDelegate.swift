@@ -47,6 +47,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         login.state = launchAtLoginEnabled ? .on : .off
         menu.addItem(login)
 
+        let saveShots = NSMenuItem(
+            title: "Сохранять скриншоты из буфера",
+            action: #selector(toggleSaveClipboardImages),
+            keyEquivalent: ""
+        )
+        saveShots.target = self
+        saveShots.state = saveClipboardImagesEnabled ? .on : .off
+        menu.addItem(saveShots)
+
+        let openFolder = NSMenuItem(
+            title: "Показать папку скриншотов",
+            action: #selector(revealScreenshots),
+            keyEquivalent: ""
+        )
+        openFolder.target = self
+        menu.addItem(openFolder)
+
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Выйти", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
@@ -62,6 +79,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    /// Defaults to on: the feature is the reason the folder exists.
+    private var saveClipboardImagesEnabled: Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: NotchViewModel.saveClipboardImagesKey) != nil else { return true }
+        return defaults.bool(forKey: NotchViewModel.saveClipboardImagesKey)
+    }
+
+    @objc private func toggleSaveClipboardImages(_ sender: NSMenuItem) {
+        UserDefaults.standard.set(!saveClipboardImagesEnabled, forKey: NotchViewModel.saveClipboardImagesKey)
+        sender.state = saveClipboardImagesEnabled ? .on : .off
+    }
+
+    @objc private func revealScreenshots() {
+        ScreenshotVault.reveal()
     }
 
     private var launchAtLoginEnabled: Bool {

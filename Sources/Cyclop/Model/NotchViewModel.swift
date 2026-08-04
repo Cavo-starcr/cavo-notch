@@ -45,10 +45,23 @@ final class NotchViewModel: ObservableObject {
         isOpen || isDropTargeted ? geometry.expandedSize : geometry.notchSize
     }
 
+    /// Off switch for people who copy images all day and do not want them kept.
+    static let saveClipboardImagesKey = "saveClipboardImages"
+
     func start() {
         media.start()
-        clipboard.start()
         shelf.load()
+
+        clipboard.onImage = { [weak self] png in
+            guard let self else { return }
+            let defaults = UserDefaults.standard
+            guard defaults.object(forKey: Self.saveClipboardImagesKey) == nil
+                    || defaults.bool(forKey: Self.saveClipboardImagesKey) else { return }
+            guard let url = ScreenshotVault.save(png) else { return }
+            self.shelf.add([url])
+            self.tab = .shelf
+        }
+        clipboard.start()
     }
 
     func stop() {

@@ -38,6 +38,10 @@ struct ClipItem: Identifiable, Equatable {
 final class ClipboardStore: ObservableObject {
     @Published private(set) var items: [ClipItem] = []
 
+    /// Raised for image data on the pasteboard — a screenshot taken straight to
+    /// the clipboard, which would otherwise vanish after one paste.
+    var onImage: ((Data) -> Void)?
+
     private var timer: Timer?
     private var lastChangeCount = NSPasteboard.general.changeCount
     private let limit = 40
@@ -91,6 +95,7 @@ final class ClipboardStore: ObservableObject {
 
         guard pasteboard.data(forType: concealed) == nil else { return }
 
+        // A copied file arrives as a URL, not as image data, so URLs win first.
         let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL],
            let url = urls.first {
@@ -98,9 +103,22 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
+        if let png = pngFromPasteboard(pasteboard) {
+            onImage?(png)
+            return
+        }
+
         guard let string = pasteboard.string(forType: .string),
               !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         record(ClipItem(payload: .text(string), date: Date()))
+    }
+
+    /// Screenshots land as PNG; other apps often offer only TIFF.
+    private func pngFromPasteboard(_ pasteboard: NSPasteboard) -> Data? {
+        if let png = pasteboard.data(forType: .png) { return png }
+        guard let tiff = pasteboard.data(forType: .tiff),
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 
     private func record(_ item: ClipItem) {

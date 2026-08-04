@@ -1,9 +1,13 @@
 import AppKit
+import QuickLookThumbnailing
 
 struct ShelfItem: Identifiable, Equatable {
     let id = UUID()
     let url: URL
-    let icon: NSImage
+    /// Starts as the file-type icon and is replaced by a real preview once
+    /// QuickLook renders one — a shelf of identical PNG icons is useless when
+    /// what it holds is screenshots.
+    var icon: NSImage
     var name: String { url.lastPathComponent }
 
     static func == (lhs: ShelfItem, rhs: ShelfItem) -> Bool { lhs.url == rhs.url }
@@ -18,7 +22,10 @@ final class ShelfStore: ObservableObject {
     @Published private(set) var selection: Set<UUID> = []
 
     private let defaultsKey = "shelf.urls"
-    private let limit = 24
+    /// Generous, because saved screenshots accumulate here and nothing is
+    /// deleted behind the user's back. Cards past the limit leave the shelf,
+    /// but their files stay in the folder.
+    private let limit = 60
 
     func load() {
         let paths = UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []
@@ -26,14 +33,34 @@ final class ShelfStore: ObservableObject {
             .map(URL.init(fileURLWithPath:))
             .filter { FileManager.default.fileExists(atPath: $0.path) }
             .map { ShelfItem(url: $0, icon: NSWorkspace.shared.icon(forFile: $0.path)) }
+        items.forEach(loadThumbnail)
     }
 
     func add(_ urls: [URL]) {
         for url in urls where !items.contains(where: { $0.url == url }) {
-            items.insert(ShelfItem(url: url, icon: NSWorkspace.shared.icon(forFile: url.path)), at: 0)
+            let item = ShelfItem(url: url, icon: NSWorkspace.shared.icon(forFile: url.path))
+            items.insert(item, at: 0)
+            loadThumbnail(item)
         }
         if items.count > limit { items.removeLast(items.count - limit) }
         persist()
+    }
+
+    private func loadThumbnail(_ item: ShelfItem) {
+        let request = QLThumbnailGenerator.Request(
+            fileAt: item.url,
+            size: CGSize(width: 76, height: 76),
+            scale: 2,
+            representationTypes: .thumbnail
+        )
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] rep, _ in
+            guard let rep else { return }
+            let image = NSImage(cgImage: rep.cgImage, size: rep.contentRect.size)
+            Task { @MainActor in
+                guard let self, let index = self.items.firstIndex(where: { $0.url == item.url }) else { return }
+                self.items[index].icon = image
+            }
+        }
     }
 
     func remove(_ item: ShelfItem) {
