@@ -3,8 +3,11 @@ import SwiftUI
 enum Theme {
     static let openAnimation = Animation.spring(response: 0.27, dampingFraction: 0.82)
     static let contentAnimation = Animation.easeOut(duration: 0.16)
-    /// Panes slide sideways, so the curve needs a little more travel time.
-    static let tabAnimation = Animation.spring(response: 0.32, dampingFraction: 0.86)
+    /// Pane switching: the outgoing pane leaves faster than the incoming one
+    /// arrives, so the two are never both half-visible for long.
+    static let paneAnimation = Animation.easeOut(duration: 0.18)
+    static let paneIn = Animation.easeOut(duration: 0.20).delay(0.04)
+    static let paneOut = Animation.easeIn(duration: 0.12)
     static let artworkAnimation = Animation.easeOut(duration: 0.28)
 
     static let collapsedTopRadius: CGFloat = 6

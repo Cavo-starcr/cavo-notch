@@ -7,8 +7,6 @@ final class NotchViewModel: ObservableObject {
         case media, shelf, clipboard
         var id: String { rawValue }
 
-        var order: Int { Self.allCases.firstIndex(of: self) ?? 0 }
-
         var symbol: String {
             switch self {
             case .media: return "music.note"
@@ -28,12 +26,7 @@ final class NotchViewModel: ObservableObject {
 
     @Published var isOpen = false
     @Published var isDropTargeted = false
-    @Published var tab: Tab = .media {
-        didSet { slidesForward = tab.order >= oldValue.order }
-    }
-    /// Direction the pane transition should travel, so tabs slide the way the
-    /// eye expects rather than always from the same side.
-    private(set) var slidesForward = true
+    @Published var tab: Tab = .media
 
     let geometry: NotchGeometry
     let media: MediaController

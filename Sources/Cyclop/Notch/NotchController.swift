@@ -16,8 +16,18 @@ final class NotchController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.rebuild() }
+            MainActor.assumeIsolated { self?.screenParametersChanged() }
         }
+    }
+
+    private func screenParametersChanged() {
+        let fresh = NotchGeometry.current()
+        guard let current = viewModel?.geometry, current.matches(fresh) else {
+            rebuild()
+            return
+        }
+        // Same display, same notch: keep the panel and everything on it.
+        panel?.setFrame(fresh.windowFrame, display: false)
     }
 
     func teardown() {
@@ -35,6 +45,7 @@ final class NotchController {
     // MARK: - Construction
 
     private func rebuild() {
+        let previousTab = viewModel?.tab
         pointer.stop()
         viewModel?.stop()
         closeActiveRectWork?.cancel()
@@ -44,6 +55,7 @@ final class NotchController {
         rootView = nil
         viewModel = nil
         build()
+        if let previousTab { viewModel?.tab = previousTab }
     }
 
     private func build() {
@@ -110,6 +122,13 @@ final class NotchController {
         pointer.start()
 
         vm.start()
+
+        // A rebuilt panel starts closed. If the pointer is already sitting on
+        // it, reopen at once instead of waiting for a trip back to the notch.
+        if geometry.expandedHoverRect.contains(NSEvent.mouseLocation) {
+            pointer.setInside(true)
+            setOpen(true)
+        }
     }
 
     // MARK: - Open / close

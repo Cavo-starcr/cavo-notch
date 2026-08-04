@@ -32,7 +32,7 @@ struct NotchContentView: View {
         .frame(width: size.width + 2 * topRadius, height: size.height, alignment: .top)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(Theme.openAnimation, value: isOpen)
-        .animation(Theme.tabAnimation, value: vm.tab)
+        .animation(Theme.paneAnimation, value: vm.tab)
     }
 
     // MARK: - Header
@@ -51,6 +51,7 @@ struct NotchContentView: View {
                     .tracking(0.8)
                     .foregroundStyle(Theme.tertiary)
                     .padding(.leading, 16)
+                    .id(vm.tab)
                     .transition(.opacity)
             }
             Spacer(minLength: 0)
@@ -131,17 +132,18 @@ struct NotchContentView: View {
     }
 
     private var panes: some View {
-        // Sideways, never from the top: the new pane enters from the side it
-        // is moving towards and the old one leaves the opposite way.
-        let edge: Edge = vm.slidesForward ? .trailing : .leading
-        let opposite: Edge = vm.slidesForward ? .leading : .trailing
-
-        return ZStack {
+        // Content is replaced in place — no travel. The rail is vertical and
+        // the panes are unrelated, so a direction would only be decoration.
+        ZStack {
             pane
                 .id(vm.tab)
                 .transition(.asymmetric(
-                    insertion: .move(edge: edge).combined(with: .opacity),
-                    removal: .move(edge: opposite).combined(with: .opacity)
+                    insertion: .opacity
+                        .combined(with: .scale(scale: 0.97))
+                        .animation(Theme.paneIn),
+                    removal: .opacity
+                        .combined(with: .scale(scale: 1.02))
+                        .animation(Theme.paneOut)
                 ))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

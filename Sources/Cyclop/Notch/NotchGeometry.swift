@@ -41,6 +41,17 @@ struct NotchGeometry {
         )
     }
 
+    /// True when nothing that affects the panel has moved. Screen-parameter
+    /// notifications fire for plenty of reasons that leave the notch exactly
+    /// where it was, and rebuilding on those would throw away the open state
+    /// and the selected tab.
+    func matches(_ other: NotchGeometry) -> Bool {
+        screen.frame == other.screen.frame
+            && notchSize == other.notchSize
+            && notchCenterX == other.notchCenterX
+            && isPhysical == other.isPhysical
+    }
+
     // MARK: - Derived frames
 
     var windowSize: CGSize {
