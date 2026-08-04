@@ -60,6 +60,11 @@ struct NotchGeometry {
         )
     }
 
+    /// Rect the content occupies inside the window, in screen coordinates.
+    func contentScreenRect(for size: CGSize) -> CGRect {
+        contentRect(for: size).offsetBy(dx: windowFrame.minX, dy: windowFrame.minY)
+    }
+
     /// Rect the content occupies inside the window, in AppKit window coordinates.
     func contentRect(for size: CGSize) -> CGRect {
         CGRect(
@@ -74,10 +79,22 @@ struct NotchGeometry {
     /// taller than the notch so the panel opens just before the pointer lands.
     var hoverRect: CGRect {
         CGRect(
-            x: notchCenterX - notchSize.width / 2 - 4,
-            y: screen.frame.maxY - notchSize.height - 2,
-            width: notchSize.width + 8,
-            height: notchSize.height + 2
+            x: notchCenterX - notchSize.width / 2 - 6,
+            y: screen.frame.maxY - notchSize.height - 4,
+            width: notchSize.width + 12,
+            height: notchSize.height + 4
+        )
+    }
+
+    /// Band along the top of the display in which pointer sampling runs at
+    /// full rate. Deep enough that a pointer heading for the notch is always
+    /// noticed before it arrives.
+    var warmZone: CGRect {
+        CGRect(
+            x: screen.frame.minX,
+            y: screen.frame.maxY - 260,
+            width: screen.frame.width,
+            height: 260
         )
     }
 

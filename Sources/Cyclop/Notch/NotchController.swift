@@ -6,7 +6,7 @@ final class NotchController {
     private var panel: NotchPanel?
     private var rootView: NotchRootView?
     private var viewModel: NotchViewModel?
-    private let hover = HoverMonitor()
+    private let pointer = PointerWatcher()
     private var closeActiveRectWork: DispatchWorkItem?
 
     func install() {
@@ -21,7 +21,7 @@ final class NotchController {
     }
 
     func teardown() {
-        hover.stop()
+        pointer.stop()
         viewModel?.stop()
         panel?.orderOut(nil)
     }
@@ -29,13 +29,13 @@ final class NotchController {
     func toggle() {
         guard let viewModel else { return }
         setOpen(!viewModel.isOpen)
-        hover.setInside(viewModel.isOpen)
+        pointer.setInside(viewModel.isOpen)
     }
 
     // MARK: - Construction
 
     private func rebuild() {
-        hover.stop()
+        pointer.stop()
         viewModel?.stop()
         closeActiveRectWork?.cancel()
         panel?.orderOut(nil)
@@ -72,7 +72,6 @@ final class NotchController {
         root.onDragExited = { [weak self] in
             guard let self, let vm = self.viewModel else { return }
             vm.isDropTargeted = false
-            self.hover.evaluate()
             // The pointer usually is not over the panel after a drag leaves.
             self.scheduleCollapseIfPointerAway()
         }
@@ -80,13 +79,14 @@ final class NotchController {
             guard let self, let vm = self.viewModel else { return false }
             vm.isDropTargeted = false
             let accepted = vm.accept(urls: urls)
-            self.hover.setInside(true)
+            self.pointer.setInside(true)
             self.setOpen(true)
             self.scheduleCollapseIfPointerAway()
             return accepted
         }
 
         panel.contentView = root
+        panel.ignoresMouseEvents = true
         panel.setFrame(geometry.windowFrame, display: false)
         panel.orderFrontRegardless()
 
@@ -95,12 +95,19 @@ final class NotchController {
 
         applyActiveRect(open: false)
 
-        hover.openRect = geometry.hoverRect
-        hover.closeRect = geometry.expandedHoverRect
-        hover.onChange = { [weak self] inside in
+        pointer.openRect = geometry.hoverRect
+        pointer.warmZone = geometry.warmZone
+        pointer.closeRect = geometry.expandedHoverRect
+        pointer.isDragging = { [weak root] in root?.isReceivingDrag ?? false }
+        pointer.onChange = { [weak self] inside in
             self?.setOpen(inside)
         }
-        hover.start()
+        // Everything outside the visible panel must reach the app underneath:
+        // a `nil` from hitTest only discards the event, it does not forward it.
+        pointer.onInteractiveChange = { [weak self] interactive in
+            self?.panel?.ignoresMouseEvents = !interactive
+        }
+        pointer.start()
 
         vm.start()
     }
@@ -120,7 +127,7 @@ final class NotchController {
             withAnimation(Theme.openAnimation) { vm.isOpen = false }
             let work = DispatchWorkItem { [weak self] in self?.applyActiveRect(open: false) }
             closeActiveRectWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.34, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.26, execute: work)
         }
     }
 
@@ -128,7 +135,7 @@ final class NotchController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             guard let self, let geometry = self.viewModel?.geometry else { return }
             if !geometry.expandedHoverRect.contains(NSEvent.mouseLocation) {
-                self.hover.setInside(false)
+                self.pointer.setInside(false)
                 self.setOpen(false)
             }
         }
@@ -145,5 +152,8 @@ final class NotchController {
             rect = rect.insetBy(dx: -Theme.openTopRadius, dy: 0)
         }
         rootView.activeRect = rect
+        pointer.interactiveRect = vm.geometry
+            .contentScreenRect(for: size)
+            .insetBy(dx: open ? -Theme.openTopRadius : 0, dy: 0)
     }
 }

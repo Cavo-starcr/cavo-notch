@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum Theme {
-    static let openAnimation = Animation.spring(response: 0.36, dampingFraction: 0.78)
+    static let openAnimation = Animation.spring(response: 0.27, dampingFraction: 0.82)
     static let contentAnimation = Animation.easeOut(duration: 0.16)
 
     static let collapsedTopRadius: CGFloat = 6

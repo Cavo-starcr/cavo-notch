@@ -11,7 +11,7 @@ final class NotchRootView: NSView {
     var onDragExited: (() -> Void)?
     var onDrop: (([URL]) -> Bool)?
 
-    private var isReceivingDrag = false
+    private(set) var isReceivingDrag = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
