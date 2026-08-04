@@ -71,9 +71,18 @@ struct NotchGeometry {
         )
     }
 
+    /// `CGRect.contains` treats `maxY` as exclusive, and the pointer parks on
+    /// exactly `screen.frame.maxY` whenever it is thrown at the top of the
+    /// display — which is precisely how one reaches the notch. Every rect that
+    /// touches the top edge is grown past it so that position counts as inside.
+    private func includingTopEdge(_ rect: CGRect) -> CGRect {
+        guard rect.maxY >= screen.frame.maxY else { return rect }
+        return CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height + 2)
+    }
+
     /// Rect the content occupies inside the window, in screen coordinates.
     func contentScreenRect(for size: CGSize) -> CGRect {
-        contentRect(for: size).offsetBy(dx: windowFrame.minX, dy: windowFrame.minY)
+        includingTopEdge(contentRect(for: size).offsetBy(dx: windowFrame.minX, dy: windowFrame.minY))
     }
 
     /// Rect the content occupies inside the window, in AppKit window coordinates.
@@ -89,33 +98,33 @@ struct NotchGeometry {
     /// Hover target while collapsed, in global screen coordinates. Slightly
     /// taller than the notch so the panel opens just before the pointer lands.
     var hoverRect: CGRect {
-        CGRect(
+        includingTopEdge(CGRect(
             x: notchCenterX - notchSize.width / 2 - 6,
             y: screen.frame.maxY - notchSize.height - 4,
             width: notchSize.width + 12,
             height: notchSize.height + 4
-        )
+        ))
     }
 
     /// Band along the top of the display in which pointer sampling runs at
     /// full rate. Deep enough that a pointer heading for the notch is always
     /// noticed before it arrives.
     var warmZone: CGRect {
-        CGRect(
+        includingTopEdge(CGRect(
             x: screen.frame.minX,
             y: screen.frame.maxY - 260,
             width: screen.frame.width,
             height: 260
-        )
+        ))
     }
 
     /// Area that keeps the panel open while expanded, in global screen coordinates.
     var expandedHoverRect: CGRect {
-        CGRect(
+        includingTopEdge(CGRect(
             x: notchCenterX - expandedSize.width / 2 - 12,
             y: screen.frame.maxY - expandedSize.height - 12,
             width: expandedSize.width + 24,
             height: expandedSize.height + 12
-        )
+        ))
     }
 }
