@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import SwiftUI
 
 @MainActor
@@ -8,7 +7,6 @@ final class NotchController {
     private var rootView: NotchRootView?
     private var viewModel: NotchViewModel?
     private let hover = HoverMonitor()
-    private var cancellables = Set<AnyCancellable>()
     private var closeActiveRectWork: DispatchWorkItem?
 
     func install() {
@@ -39,9 +37,12 @@ final class NotchController {
     private func rebuild() {
         hover.stop()
         viewModel?.stop()
-        cancellables.removeAll()
+        closeActiveRectWork?.cancel()
         panel?.orderOut(nil)
+        panel?.contentView = nil
         panel = nil
+        rootView = nil
+        viewModel = nil
         build()
     }
 
