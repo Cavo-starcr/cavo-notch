@@ -7,6 +7,8 @@ final class HoverMonitor {
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var pending: DispatchWorkItem?
+    /// State the pending work item is going to apply, if any.
+    private var pendingTarget: Bool?
     private var isInside = false
 
     /// Rect that must be entered to open, in screen coordinates.
@@ -34,7 +36,7 @@ final class HoverMonitor {
         [globalMonitor, localMonitor].compactMap { $0 }.forEach(NSEvent.removeMonitor)
         globalMonitor = nil
         localMonitor = nil
-        pending?.cancel()
+        cancelPending()
     }
 
     /// Re-evaluates against the current pointer location; call after the panel
@@ -43,11 +45,24 @@ final class HoverMonitor {
         let point = NSEvent.mouseLocation
         let rect = isInside ? closeRect : openRect
         let nowInside = rect.contains(point)
-        guard nowInside != isInside else { return }
+
+        guard nowInside != isInside else {
+            // Pointer came back before the transition fired — drop it.
+            cancelPending()
+            return
+        }
+        // A transition to this state is already scheduled. Rescheduling it on
+        // every event would mean the delay never elapses while the hand keeps
+        // the pointer trembling, and the panel would only react once the mouse
+        // stopped dead — e.g. during a click.
+        guard pendingTarget != nowInside else { return }
 
         pending?.cancel()
+        pendingTarget = nowInside
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            self.pending = nil
+            self.pendingTarget = nil
             // Confirm the pointer is still there once the delay has elapsed.
             let stillInside = (self.isInside ? self.closeRect : self.openRect).contains(NSEvent.mouseLocation)
             guard stillInside == nowInside else { return }
@@ -58,9 +73,15 @@ final class HoverMonitor {
         DispatchQueue.main.asyncAfter(deadline: .now() + (nowInside ? openDelay : closeDelay), execute: work)
     }
 
+    private func cancelPending() {
+        pending?.cancel()
+        pending = nil
+        pendingTarget = nil
+    }
+
     /// Force the internal state, e.g. when the panel is toggled from the menu.
     func setInside(_ value: Bool) {
-        pending?.cancel()
+        cancelPending()
         isInside = value
     }
 }
