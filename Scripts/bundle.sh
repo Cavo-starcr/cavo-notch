@@ -46,6 +46,15 @@ if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
 
+# Now Playing helper. Built here rather than by SwiftPM because it is not linked
+# into the app: it is loaded into /usr/bin/perl at runtime. See helper.m.
+echo "==> building Now Playing helper"
+clang -dynamiclib -fobjc-arc -O2 \
+    -mmacosx-version-min=14.0 \
+    -framework Foundation \
+    -o "$APP/Contents/Resources/libcyclopmedia.dylib" \
+    "$ROOT/Sources/CyclopMediaHelper/helper.m"
+
 echo "==> ad-hoc signing"
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || \
     echo "    (codesign failed — the app still runs, but TCC prompts may repeat)"
