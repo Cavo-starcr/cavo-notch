@@ -39,6 +39,12 @@
 "Delete" = "Delete";
 "Nothing here yet — add with +" = "Nothing here yet — add with +";
 
+/* Notes */
+"Notes" = "Notes";
+"New Note" = "New Note";
+"Empty note" = "Empty note";
+"Jot something down…" = "Jot something down…";
+
 /* Translate */
 "Translation Languages…" = "Translation Languages…";
 "Retry" = "Retry";

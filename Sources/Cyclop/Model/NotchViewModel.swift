@@ -4,7 +4,7 @@ import Combine
 @MainActor
 final class NotchViewModel: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable {
-        case media, shelf, clipboard, snippets, calendar, translate
+        case media, shelf, clipboard, snippets, calendar, translate, notes
         var id: String { rawValue }
 
         var symbol: String {
@@ -15,6 +15,7 @@ final class NotchViewModel: ObservableObject {
             case .snippets: return "pin.fill"
             case .calendar: return "calendar"
             case .translate: return "translate"
+            case .notes: return "note.text"
             }
         }
 
@@ -26,12 +27,20 @@ final class NotchViewModel: ObservableObject {
             case .snippets: return localized("Snippets")
             case .calendar: return localized("Calendar")
             case .translate: return localized("Translate")
+            case .notes: return localized("Notes")
             }
         }
 
         /// Tabs with a field in them. Landing on one hands it the keyboard, so
         /// that arriving and typing is a single move.
-        var needsKeyboard: Bool { self == .translate || self == .snippets }
+        var needsKeyboard: Bool { self == .translate || self == .snippets || self == .notes }
+
+        /// Which rail the icon sits on. The left one carries the original six
+        /// and is full — a seventh icon would outgrow the height the panel
+        /// body has — so growth continues in a second column on the right,
+        /// which the scratch notes open.
+        static let leftRail: [Tab] = [.media, .shelf, .clipboard, .snippets, .calendar, .translate]
+        static let rightRail: [Tab] = [.notes]
     }
 
     @Published var isOpen = false
@@ -46,6 +55,10 @@ final class NotchViewModel: ObservableObject {
             // The snippets file is edited from outside the app, so it is read
             // on the way in rather than held from launch.
             if tab == .snippets { snippets.reload() }
+            // Leaving the notes sweeps out the blank ones — they cost one
+            // hover to recreate, and a trail of empty cards is the clutter a
+            // scratchpad exists to avoid.
+            if oldValue == .notes, tab != .notes { notes.leave() }
             // Leaving the tab that types gives the keyboard straight back.
             if !tab.needsKeyboard { wantsKeyboard = false }
         }
@@ -67,6 +80,7 @@ final class NotchViewModel: ObservableObject {
     let calendar: CalendarStore
     let translator: Translator
     let snippets: SnippetStore
+    let notes: NoteStore
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -78,6 +92,7 @@ final class NotchViewModel: ObservableObject {
         self.calendar = CalendarStore()
         self.translator = Translator()
         self.snippets = SnippetStore()
+        self.notes = NoteStore()
 
         // The panel header reads through to the stores — counters, the source
         // name, the equalizer. Nested ObservableObjects do not propagate on
@@ -91,8 +106,8 @@ final class NotchViewModel: ObservableObject {
         // view for nobody. Opening repaints from the stores directly, because
         // `isOpen` is itself @Published and its own send does that.
         //
-        // The two stores with a text field in their pane — the translator and
-        // the snippets — are deliberately absent. They change on every
+        // The stores with a text field in their pane — the translator, the
+        // snippets and the notes — are deliberately absent. They change on every
         // keystroke, and redrawing the whole panel per letter costs more than a
         // stale counter: it rebuilds the field, which drops the focus, so the
         // first letter typed is also the last one that lands. Their panes
@@ -166,6 +181,8 @@ final class NotchViewModel: ObservableObject {
         media.stop()
         clipboard.stop()
         calendar.stop()
+        // Whatever was typed makes it to disk even when quitting mid-thought.
+        notes.flush()
     }
 
     func accept(urls: [URL]) -> Bool {

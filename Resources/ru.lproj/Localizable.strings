@@ -38,6 +38,12 @@
 "Delete" = "Удалить";
 "Nothing here yet — add with +" = "Пока пусто — добавь через +";
 
+/* Заметки */
+"Notes" = "Заметки";
+"New Note" = "Новая заметка";
+"Empty note" = "Пустая заметка";
+"Jot something down…" = "Набросай что-нибудь…";
+
 /* Перевод */
 "Translation Languages…" = "Языки перевода…";
 "Retry" = "Повторить";

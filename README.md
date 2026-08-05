@@ -32,6 +32,7 @@ that works is below.
 | **Snippets** | A hand-kept list of what you are tired of retyping: an address, a phone number, an email. Added with a button in the panel, removed with the cross on a card; a click puts the text on the clipboard. The same list lives in `~/Library/Application Support/Cyclop/snippets.json` and can be edited there instead |
 | **Calendar** | The next meeting a week ahead: how long until it starts and a button that joins the call — Zoom, Meet, Teams and others. The rest of the meetings as a list |
 | **Translate** | Type on the left, the translation appears on the right — by itself, offline, using macOS's own facilities. English goes to Russian, Russian to English; the direction comes from the script the text is written in. macOS does not preinstall language packs, so the first time you have to download one: System Settings → General → Language & Region → "Translation Languages…" |
+| **Notes** | Scratch, on the right rail of icons: jot something down, come back, delete it or carry it off through the clipboard. Hovering lands with the caret ready; blank notes sweep themselves out |
 
 The panel opens when the pointer reaches the notch and collapses when it leaves.
 Tabs switch on hover as well — but only if the pointer has come to rest on the
@@ -235,6 +236,27 @@ stays in the Clipboard tab one click away, whereas restoring it on a timer would
 be guessing when the paste happens, and typing into another app's field directly
 would have required Accessibility.
 
+**Notes.** A second column of icons, on the right — and scratch notes open it:
+a phone number from a call, half a link, a thought for the next half hour. This
+is deliberately not note-taking — no folders, no formatting, no search. It is
+the editor window with the unsaved buffer, replaced: jot, return, delete, or
+carry it off through the clipboard.
+
+Hovering onto the tab lands with the caret ready, and when there are no notes an
+empty one is created on the spot: a welcome screen with a button would be slower
+than the window this tab replaces. Blank notes sweep themselves out when the tab
+is left — a trail of empty cards is exactly the clutter a scratchpad exists to
+avoid. The first line stands in for a title in the list: notes here are too
+short-lived to deserve naming as a separate step. Esc hands the keyboard back
+and never clears the text — this is the one text in the panel that cannot be
+re-derived from anywhere.
+
+Everything is written to `~/Library/Application Support/Cyclop/notes.json` a
+moment after the typing pauses, not on every keystroke; unlike the snippets file
+it is not meant to be edited by hand, and it is plain text. The right column is
+not decoration: the six icons on the left already fill the panel's height, and a
+seventh would not fit.
+
 **Languages.** Russian and English; macOS picks by the user's preferred language
 list. The keys in the tables are the English text, so a string without a
 translation stays an English phrase instead of turning into an identifier — which
@@ -413,6 +435,7 @@ Sources/Cyclop
 │   ├── ClipboardStore.swift
 │   ├── ScreenshotVault.swift  clipboard screenshots onto disk
 │   ├── SnippetStore.swift     snippets: reading and writing snippets.json
+│   ├── NoteStore.swift        scratch notes: notes.json
 │   ├── Translator.swift       Translation.framework, direction by script
 │   └── CalendarStore.swift    EventKit: next meetings and the call link
 └── UI/                        NotchShape, tab panes, theme
