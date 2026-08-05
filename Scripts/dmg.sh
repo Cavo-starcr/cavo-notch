@@ -9,10 +9,10 @@ APP="$ROOT/build/Cyclop.app"
 VERSION="$(sed -n 's/^VERSION=//p' "$ROOT/Scripts/version" 2>/dev/null || echo 0.1.0)"
 DMG="$ROOT/build/Cyclop-$VERSION.dmg"
 
-if [ ! -d "$APP" ]; then
-    echo "==> приложения нет, собираю"
-    "$ROOT/Scripts/bundle.sh" release
-fi
+# Всегда, а не только когда приложения нет. Иначе образ уносит то, что лежало в
+# build с прошлого раза: номер на образе новый, приложение внутри старое, и
+# заметить это можно лишь запустив его.
+"$ROOT/Scripts/bundle.sh" release
 
 echo "==> раскладка образа"
 STAGE="$(mktemp -d)"
@@ -32,6 +32,15 @@ hdiutil create \
 
 SIZE="$(du -h "$DMG" | cut -f1 | tr -d ' ')"
 echo "==> готово: $DMG ($SIZE)"
+
+# Имя образа обещает версию, и обещание стоит проверить: расходятся они молча.
+INSIDE="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' \
+    "$APP/Contents/Info.plist" 2>/dev/null || echo "?")"
+if [ "$INSIDE" != "$VERSION" ]; then
+    echo "!!! в образе лежит версия $INSIDE, а имя обещает $VERSION" >&2
+    exit 1
+fi
+echo "==> версия внутри совпадает: $INSIDE"
 
 # Сказано здесь, потому что узнать это иначе можно только от человека, у
 # которого приложение не открылось.
