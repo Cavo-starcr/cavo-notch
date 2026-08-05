@@ -30,6 +30,22 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
     fail "тег $TAG уже есть. Подними номер в Scripts/version"
 fi
 
+# Заметки к релизу состоят из двух частей, и первую не напишет никто, кроме
+# человека. Список коммитов отвечает на вопрос "что изменилось в коде";
+# пришедший спрашивает "что мне это даст" — это разные ответы, и второй
+# автоматически не получается. Поэтому файл обязателен: если его нет, скрипт
+# заводит болванку и останавливается, вместо того чтобы выпустить версию,
+# о которой нечего сказать.
+NOTES="$ROOT/docs/releases/$VERSION.md"
+if [ ! -f "$NOTES" ]; then
+    mkdir -p "$(dirname "$NOTES")"
+    cat > "$NOTES" <<TEMPLATE
+Что нового в $VERSION — пара строк о том, что человек заметит, открыв
+приложение. Список коммитов допишется сам, повторять его здесь не нужно.
+TEMPLATE
+    fail "нет заметок к релизу. Завел $NOTES — впиши, что нового, и запусти снова"
+fi
+
 echo "==> сборка образа $VERSION"
 "$ROOT/Scripts/dmg.sh" >/dev/null
 [ -f "$DMG" ] || fail "образ не собрался: $DMG"
@@ -39,11 +55,24 @@ git tag -a "$TAG" -m "Cyclop $VERSION"
 git push --quiet origin "$TAG"
 
 echo "==> релиз на GitHub"
-# Заметки собираются из коммитов с прошлого тега: писать их вручную значит
-# писать их дважды, а расходятся они уже на второй версии.
+# Список коммитов берется у GitHub отдельным вызовом, а не флагом
+# --generate-notes: флаг заменил бы собой все тело, и человеческая часть в него
+# бы не попала. Так две части просто складываются в нужном порядке.
+REPO="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
+PREVIOUS="$(git tag --sort=-v:refname | sed -n 2p)"
+GENERATED="$(gh api "repos/$REPO/releases/generate-notes" \
+    -f tag_name="$TAG" \
+    ${PREVIOUS:+-f previous_tag_name="$PREVIOUS"} \
+    --jq '.body' 2>/dev/null || echo "")"
+
+BODY="$(mktemp)"
+trap 'rm -f "$BODY"' EXIT
+cat "$NOTES" > "$BODY"
+[ -n "$GENERATED" ] && printf '\n\n---\n\n%s\n' "$GENERATED" >> "$BODY"
+
 gh release create "$TAG" "$DMG" \
     --title "Cyclop $VERSION" \
-    --generate-notes \
+    --notes-file "$BODY" \
     --latest
 
 echo "==> готово"
