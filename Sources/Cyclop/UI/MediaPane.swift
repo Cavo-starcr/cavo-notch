@@ -158,12 +158,11 @@ struct MediaPane: View {
             Image(systemName: "music.note.list")
                 .font(.system(size: 22, weight: .light))
                 .foregroundStyle(Theme.tertiary)
+            // Status, not instruction: an empty pane on its own would not say
+            // whether nothing is playing or nothing could be read.
             Text("Ничего не играет")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.secondary)
-            Text("Включи музыку где угодно — в плеере или во вкладке браузера.")
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

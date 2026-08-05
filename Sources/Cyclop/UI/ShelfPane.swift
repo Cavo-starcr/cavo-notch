@@ -36,17 +36,9 @@ struct ShelfPane: View {
                     .fill(isTargeted ? Theme.surface : .clear)
             )
             .overlay(
-                VStack(spacing: 7) {
-                    Image(systemName: "tray.and.arrow.down.fill")
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundStyle(isTargeted ? .white : Theme.tertiary)
-                    Text("Перетащи файлы в челку")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
-                    Text("Они полежат здесь, пока не понадобятся")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.tertiary)
-                }
+                Image(systemName: "tray.and.arrow.down.fill")
+                    .font(.system(size: 20, weight: .light))
+                    .foregroundStyle(isTargeted ? .white : Theme.tertiary)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(Theme.contentAnimation, value: isTargeted)
@@ -54,11 +46,11 @@ struct ShelfPane: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Text(shelf.selection.isEmpty
-                 ? "Клик — выбрать, ⌘-клик — несколько; тяни наружу"
-                 : "Выбрано: \(shelf.selection.count) — тяни любую из них")
-                .font(.system(size: 9))
-                .foregroundStyle(Theme.tertiary)
+            if !shelf.selection.isEmpty {
+                Text("Выбрано: \(shelf.selection.count)")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiary)
+            }
             Spacer()
             if !shelf.selection.isEmpty {
                 Button("Снять выбор") { shelf.clearSelection() }
@@ -84,9 +76,14 @@ private struct ShelfCard: View {
 
     var body: some View {
         VStack(spacing: 6) {
+            // Fit, not fill: a screenshot is landscape and a file icon is
+            // square, and forcing either into the other's box is what squashed
+            // the wide ones. The box is wide enough for a 16:10 frame, so a
+            // square icon simply centres in it.
             Image(nsImage: item.icon)
                 .resizable()
-                .frame(width: 38, height: 38)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 68, height: 40)
             Text(item.name)
                 .font(.system(size: 9))
                 .foregroundStyle(Theme.secondary)

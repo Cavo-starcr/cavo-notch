@@ -53,15 +53,21 @@ final class ShelfStore: ObservableObject {
     }
 
     private func loadThumbnail(_ item: ShelfItem) {
+        // A square box QuickLook fits the content into, whatever its shape.
+        // Generous enough that a landscape screenshot still lands above the
+        // card's pixel size once it has been fitted.
         let request = QLThumbnailGenerator.Request(
             fileAt: item.url,
-            size: CGSize(width: 76, height: 76),
+            size: CGSize(width: 96, height: 96),
             scale: 2,
             representationTypes: .thumbnail
         )
         QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] rep, _ in
             guard let rep else { return }
-            let image = NSImage(cgImage: rep.cgImage, size: rep.contentRect.size)
+            // `nsImage` already carries the right point size for the
+            // representation; deriving one from `contentRect` risks describing
+            // a shape the bitmap does not have.
+            let image = rep.nsImage
             Task { @MainActor in
                 guard let self, let index = self.items.firstIndex(where: { $0.url == item.url }) else { return }
                 self.items[index].icon = image

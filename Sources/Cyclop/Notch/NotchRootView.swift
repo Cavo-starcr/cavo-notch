@@ -5,7 +5,14 @@ import UniformTypeIdentifiers
 /// so the window can stay at its full expanded size while the panel is collapsed.
 final class NotchRootView: NSView {
     /// Interactive area, in window coordinates.
-    var activeRect: CGRect = .zero
+    var activeRect: CGRect = .zero {
+        didSet {
+            guard activeRect != oldValue else { return }
+            refreshCursorArea()
+        }
+    }
+
+    private var cursorArea: NSTrackingArea?
 
     var onDragEntered: (() -> Void)?
     var onDragExited: (() -> Void)?
@@ -30,6 +37,47 @@ final class NotchRootView: NSView {
         // otherwise AppKit drops us as the destination mid-animation.
         guard isReceivingDrag || activeRect.contains(point) else { return nil }
         return super.hitTest(point)
+    }
+
+    // MARK: - Cursor
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        refreshCursorArea()
+    }
+
+    /// The cursor shape comes from the topmost window claiming a region under
+    /// the pointer. Claiming nothing does not mean "leave the cursor alone", it
+    /// means the panel is invisible to that lookup and the window underneath
+    /// gets to decide — an I-beam over a text editor, say. So claim exactly the
+    /// part of the panel that takes events and pin it to the arrow.
+    ///
+    /// A cursor rect would not do: AppKit disables those for non-key windows,
+    /// and this panel is never key. `.activeAlways` keeps the tracking area
+    /// live regardless of that and of the app being inactive.
+    private func refreshCursorArea() {
+        if let cursorArea {
+            removeTrackingArea(cursorArea)
+            self.cursorArea = nil
+        }
+        guard !activeRect.isEmpty else { return }
+        let area = NSTrackingArea(
+            rect: activeRect,
+            options: [.cursorUpdate, .mouseEnteredAndExited, .activeAlways],
+            owner: self
+        )
+        addTrackingArea(area)
+        cursorArea = area
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        NSCursor.arrow.set()
+    }
+
+    /// The pointer can already be inside a freshly installed area — entering is
+    /// then the first notification we get, and no cursor update precedes it.
+    override func mouseEntered(with event: NSEvent) {
+        NSCursor.arrow.set()
     }
 
     // MARK: - Drag destination

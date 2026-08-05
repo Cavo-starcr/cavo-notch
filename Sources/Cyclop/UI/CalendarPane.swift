@@ -41,7 +41,7 @@ struct CalendarPane: View {
 
                 Spacer(minLength: 10)
 
-                if let link = next.link {
+                if next.link != nil {
                     Button {
                         calendar.join(next)
                     } label: {
@@ -59,7 +59,6 @@ struct CalendarPane: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.leading, 14)
-                    .help(link.absoluteString)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

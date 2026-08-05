@@ -20,6 +20,10 @@ final class PointerWatcher {
     /// Keeps the panel interactive while a drag is being tracked, even if the
     /// pointer wanders outside `interactiveRect` mid-session.
     var isDragging: () -> Bool = { false }
+    /// Whether the panel is expanded right now. Read, not assumed: this watcher
+    /// tracks where the pointer is, and the panel is opened and closed by other
+    /// things too — a drag, the menu bar, a tab that wants the keyboard.
+    var isPanelOpen: () -> Bool = { false }
 
     /// Short enough to feel immediate, long enough that a pointer sweeping
     /// across the top of the screen does not trigger the panel.
@@ -100,6 +104,28 @@ final class PointerWatcher {
         }
 
         let inside = (isInside ? closeRect : openRect).contains(point)
+
+        // Whether the panel is open and where the pointer is are two separate
+        // facts, and only one of them is tracked here. They are supposed to
+        // agree, but every path that opens the panel without the pointer —
+        // a drop, the menu bar, a tab claiming the keyboard — is a chance for
+        // them to come apart, and the shape that costs the user something is
+        // always the same: a panel standing open with the mouse nowhere near
+        // it, waiting for a hover that already happened. Whatever led there,
+        // the pointer is the authority, so say so again.
+        // A drag is the one time the panel is meant to stand open with the
+        // pointer off it: it was opened to be dropped onto.
+        if !inside, !isInside, !isDragging(), isPanelOpen() {
+            guard let start = awaitingSince else {
+                awaitingSince = Date()
+                return
+            }
+            guard Date().timeIntervalSince(start) >= closeDelay else { return }
+            awaitingSince = nil
+            onChange?(false)
+            return
+        }
+
         guard inside != isInside else {
             awaitingSince = nil
             return

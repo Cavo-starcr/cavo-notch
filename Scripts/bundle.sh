@@ -30,7 +30,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundleVersion</key><string>$VERSION</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSMinimumSystemVersion</key><string>15.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticTermination</key><false/>
@@ -41,6 +41,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <string>Cyclop показывает ближайшие встречи и кнопку подключения к ним.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>Cyclop показывает ближайшие встречи и кнопку подключения к ним.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Cyclop замечает картинки, присланные по AirDrop, и кладёт их на полку.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Cyclop принимает снимки экрана, отправленные с телефона по локальной сети.</string>
     <key>NSHumanReadableCopyright</key><string>MIT License</string>
 </dict>
 </plist>
@@ -54,7 +58,7 @@ fi
 # into the app: it is loaded into /usr/bin/perl at runtime. See helper.m.
 echo "==> building Now Playing helper"
 clang -dynamiclib -fobjc-arc -O2 \
-    -mmacosx-version-min=14.0 \
+    -mmacosx-version-min=15.0 \
     -framework Foundation \
     -o "$APP/Contents/Resources/libcyclopmedia.dylib" \
     "$ROOT/Sources/CyclopMediaHelper/helper.m"

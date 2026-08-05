@@ -6,18 +6,10 @@ struct ClipboardPane: View {
     var body: some View {
         VStack(spacing: 0) {
             if clipboard.items.isEmpty {
-                VStack(spacing: 7) {
-                    Image(systemName: "list.clipboard")
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundStyle(Theme.tertiary)
-                    Text("История буфера пуста")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
-                    Text("Скопируй что-нибудь — оно появится здесь")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.tertiary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Image(systemName: "list.clipboard")
+                    .font(.system(size: 20, weight: .light))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 3) {
@@ -35,9 +27,6 @@ struct ClipboardPane: View {
 
     private var footer: some View {
         HStack {
-            Text("Клик — вернуть в буфер обмена")
-                .font(.system(size: 9))
-                .foregroundStyle(Theme.tertiary)
             Spacer()
             Button("Очистить") { clipboard.clear() }
                 .buttonStyle(.plain)
@@ -53,6 +42,7 @@ private struct ClipRow: View {
     @ObservedObject var clipboard: ClipboardStore
     @State private var hovering = false
     @State private var justCopied = false
+
 
     var body: some View {
         HStack(spacing: 9) {

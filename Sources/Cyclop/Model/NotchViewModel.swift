@@ -4,7 +4,7 @@ import Combine
 @MainActor
 final class NotchViewModel: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable {
-        case media, shelf, clipboard, calendar
+        case media, shelf, clipboard, snippets, calendar, translate
         var id: String { rawValue }
 
         var symbol: String {
@@ -12,7 +12,9 @@ final class NotchViewModel: ObservableObject {
             case .media: return "music.note"
             case .shelf: return "tray.full.fill"
             case .clipboard: return "list.clipboard.fill"
+            case .snippets: return "pin.fill"
             case .calendar: return "calendar"
+            case .translate: return "translate"
             }
         }
 
@@ -21,26 +23,52 @@ final class NotchViewModel: ObservableObject {
             case .media: return "Музыка"
             case .shelf: return "Полка"
             case .clipboard: return "Буфер"
+            case .snippets: return "Заготовки"
             case .calendar: return "Календарь"
+            case .translate: return "Перевод"
             }
         }
+
+        /// Tabs with a field in them. Landing on one hands it the keyboard, so
+        /// that arriving and typing is a single move.
+        var needsKeyboard: Bool { self == .translate || self == .snippets }
     }
 
     @Published var isOpen = false
     @Published var isDropTargeted = false
     @Published var tab: Tab = .media {
-        // Opening the tab only re-checks the status. The permission prompt is
-        // the user's own press on the button inside the pane: this is the one
-        // permission Cyclop asks for at all, and it deserves an explanation
-        // before the system dialog, not after.
-        didSet { if tab == .calendar { calendar.refreshAccess() } }
+        didSet {
+            // Opening the tab only re-checks the status. The permission prompt
+            // is the user's own press on the button inside the pane: this is
+            // the one permission Cyclop asks for at all, and it deserves an
+            // explanation before the system dialog, not after.
+            if tab == .calendar { calendar.refreshAccess() }
+            // The snippets file is edited from outside the app, so it is read
+            // on the way in rather than held from launch.
+            if tab == .snippets { snippets.reload() }
+            // Leaving the tab that types gives the keyboard straight back.
+            if !tab.needsKeyboard { wantsKeyboard = false }
+        }
     }
+
+    /// Whether the panel currently holds the keyboard.
+    ///
+    /// Tracked apart from `tab` because the two come apart in one direction:
+    /// clicking into another app drops the claim without changing which tab is
+    /// showing, so the text one was typing survives and the panel is free to
+    /// collapse. Landing on a tab that types always raises it again — there is
+    /// no such thing as a panel that shows a field but cannot receive a key.
+    @Published var wantsKeyboard = false
 
     let geometry: NotchGeometry
     let media: MediaController
     let shelf: ShelfStore
     let clipboard: ClipboardStore
     let calendar: CalendarStore
+    let translator: Translator
+    let snippets: SnippetStore
+    let airdrop: AirDropWatcher
+    let inbox: DropInbox
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -50,11 +78,23 @@ final class NotchViewModel: ObservableObject {
         self.shelf = ShelfStore()
         self.clipboard = ClipboardStore()
         self.calendar = CalendarStore()
+        self.translator = Translator()
+        self.snippets = SnippetStore()
+        self.airdrop = AirDropWatcher()
+        self.inbox = DropInbox()
 
         // The panel header reads through to the stores — counters, the source
         // name, the equalizer. Nested ObservableObjects do not propagate on
         // their own, so those would only refresh when something else happened
         // to redraw the view.
+        //
+        // The two stores with a text field in their pane — the translator and
+        // the snippets — are deliberately absent. They change on every
+        // keystroke, and redrawing the whole panel per letter costs more than a
+        // stale counter: it rebuilds the field, which drops the focus, so the
+        // first letter typed is also the last one that lands. Their panes
+        // observe them directly, and the header counter refreshes anyway,
+        // because the list is only ever re-read on the way into the tab.
         for child in [
             media.objectWillChange,
             shelf.objectWillChange,
@@ -75,9 +115,19 @@ final class NotchViewModel: ObservableObject {
     /// Off switch for people who copy images all day and do not want them kept.
     static let saveClipboardImagesKey = "saveClipboardImages"
 
+    /// Hover and click both land here. A tab that types takes the keyboard
+    /// either way: showing a field one cannot type into is worse than briefly
+    /// dimming the caret of the window underneath, and the dwell threshold on
+    /// the rail already keeps a passing pointer from arriving here at all.
+    func select(_ tab: Tab) {
+        self.tab = tab
+        if tab.needsKeyboard { wantsKeyboard = true }
+    }
+
     func start() {
         media.start()
         shelf.load()
+        snippets.reload()
         // Only picks up where it left off if access was granted earlier; it
         // never prompts on its own.
         calendar.start()
@@ -92,12 +142,30 @@ final class NotchViewModel: ObservableObject {
             self.tab = .shelf
         }
         clipboard.start()
+
+        // Files are referenced where they lie, so an AirDropped picture stays
+        // in Downloads and the shelf merely points at it — the same deal as a
+        // file dragged onto the notch by hand.
+        airdrop.onArrival = { [weak self] urls in
+            guard let self else { return }
+            self.shelf.add(urls)
+            self.tab = .shelf
+        }
+        inbox.onArrival = { [weak self] urls in
+            guard let self else { return }
+            self.shelf.add(urls)
+            self.tab = .shelf
+        }
+        airdrop.start()
+        inbox.start()
     }
 
     func stop() {
         media.stop()
         clipboard.stop()
         calendar.stop()
+        airdrop.stop()
+        inbox.stop()
     }
 
     func accept(urls: [URL]) -> Bool {

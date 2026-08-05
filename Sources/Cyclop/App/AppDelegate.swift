@@ -56,6 +56,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         saveShots.state = saveClipboardImagesEnabled ? .on : .off
         menu.addItem(saveShots)
 
+        let airdrop = NSMenuItem(
+            title: "Ловить картинки из AirDrop",
+            action: #selector(toggleCatchAirDrops),
+            keyEquivalent: ""
+        )
+        airdrop.target = self
+        airdrop.state = AirDropWatcher.isEnabled ? .on : .off
+        menu.addItem(airdrop)
+
+        let inbox = NSMenuItem(
+            title: "Принимать снимки с телефона",
+            action: #selector(togglePhoneInbox),
+            keyEquivalent: ""
+        )
+        inbox.target = self
+        inbox.state = DropInbox.isEnabled ? .on : .off
+        menu.addItem(inbox)
+
+        let inboxAddress = NSMenuItem(
+            title: "Скопировать адрес для телефона",
+            action: #selector(copyInboxAddress),
+            keyEquivalent: ""
+        )
+        inboxAddress.target = self
+        menu.addItem(inboxAddress)
+
         let openFolder = NSMenuItem(
             title: "Показать папку скриншотов",
             action: #selector(revealScreenshots),
@@ -63,6 +89,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         openFolder.target = self
         menu.addItem(openFolder)
+
+        let openSnippets = NSMenuItem(
+            title: "Показать файл заготовок",
+            action: #selector(revealSnippets),
+            keyEquivalent: ""
+        )
+        openSnippets.target = self
+        menu.addItem(openSnippets)
 
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Выйти", action: #selector(quit), keyEquivalent: "q")
@@ -93,8 +127,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sender.state = saveClipboardImagesEnabled ? .on : .off
     }
 
+    @objc private func toggleCatchAirDrops(_ sender: NSMenuItem) {
+        UserDefaults.standard.set(!AirDropWatcher.isEnabled, forKey: AirDropWatcher.enabledKey)
+        sender.state = AirDropWatcher.isEnabled ? .on : .off
+        controller?.refreshServices()
+    }
+
+    @objc private func togglePhoneInbox(_ sender: NSMenuItem) {
+        UserDefaults.standard.set(!DropInbox.isEnabled, forKey: DropInbox.enabledKey)
+        sender.state = DropInbox.isEnabled ? .on : .off
+        controller?.refreshServices()
+    }
+
+    /// The address carries the secret, so it is handed over by copying rather
+    /// than shown in a menu somebody could read over a shoulder.
+    @objc private func copyInboxAddress() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(DropInbox.address, forType: .string)
+    }
+
     @objc private func revealScreenshots() {
         ScreenshotVault.reveal()
+    }
+
+    @objc private func revealSnippets() {
+        SnippetStore.reveal()
     }
 
     private var launchAtLoginEnabled: Bool {

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @MainActor
@@ -8,6 +9,7 @@ final class NotchController {
     private var viewModel: NotchViewModel?
     private let pointer = PointerWatcher()
     private var closeActiveRectWork: DispatchWorkItem?
+    private var cancellables = Set<AnyCancellable>()
 
     func install() {
         build()
@@ -18,6 +20,25 @@ final class NotchController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.screenParametersChanged() }
         }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.activeSpaceChanged() }
+        }
+    }
+
+    /// The panel belongs to the desktop it was opened on. ⌘-Tab to another one
+    /// leaves the pointer wherever it happened to be — which is not a decision
+    /// to keep the panel expanded over a screen the user has just arrived at.
+    /// Collapsing also puts hover tracking back in step: nothing moved the
+    /// mouse, so nothing else would have.
+    private func activeSpaceChanged() {
+        guard viewModel?.isOpen == true else { return }
+        // What was typed is kept — only the panel closes.
+        setOpen(false)
+        pointer.setInside(false)
     }
 
     private func screenParametersChanged() {
@@ -33,7 +54,16 @@ final class NotchController {
     func teardown() {
         pointer.stop()
         viewModel?.stop()
+        panel?.acceptsKeyboard = false
         panel?.orderOut(nil)
+    }
+
+    /// Brings the two background listeners in line with their menu switches, so
+    /// flipping one takes effect where it was flipped rather than next launch.
+    func refreshServices() {
+        guard let vm = viewModel else { return }
+        if AirDropWatcher.isEnabled { vm.airdrop.start() } else { vm.airdrop.stop() }
+        if DropInbox.isEnabled { vm.inbox.start() } else { vm.inbox.stop() }
     }
 
     func toggle() {
@@ -49,6 +79,8 @@ final class NotchController {
         pointer.stop()
         viewModel?.stop()
         closeActiveRectWork?.cancel()
+        cancellables.removeAll()
+        panel?.acceptsKeyboard = false
         panel?.orderOut(nil)
         panel?.contentView = nil
         panel = nil
@@ -97,6 +129,13 @@ final class NotchController {
             return accepted
         }
 
+        // Clicking away drops the keyboard but leaves the tab where it was, so
+        // a click back into the panel has to be able to ask for it again.
+        panel.onPress = { [weak self] in
+            guard let vm = self?.viewModel, vm.tab.needsKeyboard else { return }
+            vm.wantsKeyboard = true
+        }
+
         panel.contentView = root
         panel.ignoresMouseEvents = true
         panel.setFrame(geometry.windowFrame, display: false)
@@ -111,6 +150,7 @@ final class NotchController {
         pointer.warmZone = geometry.warmZone
         pointer.closeRect = geometry.expandedHoverRect
         pointer.isDragging = { [weak root] in root?.isReceivingDrag ?? false }
+        pointer.isPanelOpen = { [weak vm] in vm?.isOpen ?? false }
         pointer.onChange = { [weak self] inside in
             self?.setOpen(inside)
         }
@@ -120,6 +160,25 @@ final class NotchController {
             self?.panel?.ignoresMouseEvents = !interactive
         }
         pointer.start()
+
+        // Driven by the deliberate request, not by which tab is showing: a
+        // hover can land on the typing tab now, and that alone must not take
+        // the keyboard away from the window underneath.
+        vm.$wantsKeyboard
+            .removeDuplicates()
+            .sink { [weak self] wants in
+                MainActor.assumeIsolated { self?.setKeyboard(wants) }
+            }
+            .store(in: &cancellables)
+
+        // Clicking into another app drops the keyboard: there is no
+        // click-outside to catch, but losing key status says the same. The tab
+        // stays as it was — only the claim on the keyboard is dropped.
+        NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification, object: panel)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.viewModel?.wantsKeyboard = false }
+            }
+            .store(in: &cancellables)
 
         vm.start()
 
@@ -133,6 +192,23 @@ final class NotchController {
 
     // MARK: - Open / close
 
+    /// Hands the keyboard to the panel, or gives it back.
+    private func setKeyboard(_ wants: Bool) {
+        if wants {
+            setOpen(true)
+            pointer.setInside(true)
+        }
+        panel?.acceptsKeyboard = wants
+        // What was typed stays: clicking away to look something up should not
+        // be the same as throwing the text out. Esc and the ✕ do that.
+        if !wants { scheduleCollapseIfPointerAway() }
+    }
+
+    /// The pointer decides, always. A field with something in it does not hold
+    /// the panel open: it is opened by hovering, and anything that survives the
+    /// pointer leaving would have to be dismissed some other way, which is a
+    /// second rule to learn for a panel that has exactly one. What was typed is
+    /// kept, so coming back finds it where it was left.
     private func setOpen(_ open: Bool) {
         guard let vm = viewModel, vm.isOpen != open else { return }
         closeActiveRectWork?.cancel()
@@ -144,6 +220,8 @@ final class NotchController {
             withAnimation(Theme.openAnimation) { vm.isOpen = true }
             vm.media.setActive(true)
         } else {
+            // A collapsed panel has no business holding the keyboard.
+            vm.wantsKeyboard = false
             withAnimation(Theme.openAnimation) { vm.isOpen = false }
             vm.media.setActive(false)
             // Shrink only once the panel has finished collapsing. Doing it
@@ -158,10 +236,12 @@ final class NotchController {
     private func scheduleCollapseIfPointerAway() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             guard let self, let geometry = self.viewModel?.geometry else { return }
-            if !geometry.expandedHoverRect.contains(NSEvent.mouseLocation) {
-                self.pointer.setInside(false)
-                self.setOpen(false)
-            }
+            // Resync either way. A pointer that is still on the panel has to be
+            // recorded as inside, or hover tracking stays convinced it left and
+            // the panel hangs open until the notch is touched again.
+            let away = !geometry.expandedHoverRect.contains(NSEvent.mouseLocation)
+            self.pointer.setInside(!away)
+            if away { self.setOpen(false) }
         }
     }
 

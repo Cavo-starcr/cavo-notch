@@ -82,12 +82,18 @@ struct NotchContentView: View {
             counter(vm.shelf.items.count)
         case .clipboard:
             counter(vm.clipboard.items.count)
+        case .snippets:
+            counter(vm.snippets.items.count)
         case .calendar:
             if let next = vm.calendar.next {
                 Text(CalendarPane.countdown(to: next, from: vm.calendar.now))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(next.isRunning ? Color.white.opacity(0.8) : Theme.tertiary)
             }
+        case .translate:
+            // Nothing: the columns name both languages already, and the strip
+            // is the one part of the panel worth not spending on a repeat.
+            EmptyView()
         }
     }
 
@@ -113,29 +119,7 @@ struct NotchContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var rail: some View {
-        VStack(spacing: 6) {
-            ForEach(NotchViewModel.Tab.allCases) { tab in
-                Button {
-                    vm.tab = tab
-                } label: {
-                    Image(systemName: tab.symbol)
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 30, height: 28)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(vm.tab == tab ? Theme.surfaceHover : .clear)
-                        )
-                        .foregroundStyle(vm.tab == tab ? Color.white : Theme.tertiary)
-                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .help(tab.title)
-            }
-        }
-        .frame(width: 30)
-        .frame(maxHeight: .infinity, alignment: .center)
-    }
+    private var rail: some View { Rail(vm: vm) }
 
     private var panes: some View {
         // Content is replaced in place — no travel. The rail is vertical and
@@ -167,6 +151,76 @@ struct NotchContentView: View {
             ClipboardPane(clipboard: vm.clipboard)
         case .calendar:
             CalendarPane(calendar: vm.calendar)
+        case .snippets:
+            SnippetsPane(snippets: vm.snippets, wantsKeyboard: $vm.wantsKeyboard)
+        case .translate:
+            TranslatePane(translator: vm.translator, wantsKeyboard: $vm.wantsKeyboard)
         }
+    }
+}
+
+/// Tab switcher.
+///
+/// Hovering switches tabs, but only after the pointer has stopped: a pointer
+/// crossing the rail on its way somewhere else is gone in a few dozen
+/// milliseconds, while one that came to choose stays put. The same dwell
+/// threshold is what separates "the mouse was flung across the top of the
+/// screen" from "the mouse came to the notch" in `PointerWatcher`.
+private struct Rail: View {
+    @ObservedObject var vm: NotchViewModel
+
+    @State private var hovered: NotchViewModel.Tab?
+
+    /// Long enough to swallow a pass-through, short enough that a deliberate
+    /// hover still feels like it answered instantly.
+    private let dwell = Duration.milliseconds(150)
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ForEach(NotchViewModel.Tab.allCases) { tab in
+                Button {
+                    vm.select(tab)
+                } label: {
+                    Image(systemName: tab.symbol)
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 30, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(fill(for: tab))
+                        )
+                        .foregroundStyle(vm.tab == tab ? Color.white : Theme.tertiary)
+                        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        // A render-time transform. Growing the frame instead
+                        // would re-lay out the rail on every hover, and layout
+                        // that runs on pointer movement is exactly the kind
+                        // that shows up as a stutter.
+                        .scaleEffect(hovered == tab ? 1.15 : 1)
+                }
+                .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside {
+                        hovered = tab
+                    } else if hovered == tab {
+                        hovered = nil
+                    }
+                }
+            }
+        }
+        .frame(width: 30)
+        .frame(maxHeight: .infinity, alignment: .center)
+        .animation(Theme.contentAnimation, value: hovered)
+        // Moving to another icon cancels the pending switch along with the
+        // task, so only the icon actually rested on ever wins.
+        .task(id: hovered) {
+            guard let hovered, hovered != vm.tab else { return }
+            try? await Task.sleep(for: dwell)
+            guard !Task.isCancelled else { return }
+            vm.select(hovered)
+        }
+    }
+
+    private func fill(for tab: NotchViewModel.Tab) -> Color {
+        if vm.tab == tab { return Theme.surfaceHover }
+        return hovered == tab ? Theme.surface : .clear
     }
 }

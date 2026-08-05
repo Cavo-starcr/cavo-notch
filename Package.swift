@@ -3,7 +3,8 @@ import PackageDescription
 
 let package = Package(
     name: "Cyclop",
-    platforms: [.macOS(.v14)],
+    // macOS 15 for Translation.framework, which the translate tab runs on.
+    platforms: [.macOS(.v15)],
     products: [
         .executable(name: "Cyclop", targets: ["Cyclop"])
     ],

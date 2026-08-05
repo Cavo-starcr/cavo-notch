@@ -120,10 +120,10 @@ final class MediaController: ObservableObject {
             let expired = Date().timeIntervalSince(pending.at) > 1.5
             if settled || expired {
                 pendingSeek = nil
-                setAnchor(snapshot.elapsed)
+                adopt(snapshot.elapsed)
             }
         } else {
-            setAnchor(snapshot.elapsed)
+            adopt(snapshot.elapsed)
         }
         updateTicker()
 
@@ -197,7 +197,7 @@ final class MediaController: ObservableObject {
             self.track = Track(title: state.title, artist: state.artist, album: state.album, key: state.key)
             self.isPlaying = state.isPlaying
             self.duration = state.duration
-            self.setAnchor(state.position)
+            self.adopt(state.position)
             self.updateTicker()
 
             guard self.artworkKey != state.key else { return }
@@ -215,6 +215,38 @@ final class MediaController: ObservableObject {
     private func setAnchor(_ value: TimeInterval) {
         position = value
         anchor = (value, Date())
+    }
+
+    /// Below this a forward correction is pipeline jitter, not movement.
+    private let forwardTolerance: TimeInterval = 0.75
+    /// A disagreement this large is an event — a seek made in the player
+    /// itself, or a track change — not a discrepancy to be smoothed over.
+    private let seekThreshold: TimeInterval = 2
+
+    /// Takes a position reported by the player, without letting the report undo
+    /// what has already been shown.
+    ///
+    /// Every reading arrives late: the helper, the pipe and the parse sit
+    /// between the player's clock and ours, so a report is normally a little
+    /// *behind* the bar. Accepting it moves the bar backwards — and backwards
+    /// is the one direction anybody notices, because time does not do it. So
+    /// the two directions get different rules rather than one shared tolerance:
+    /// backwards only for something big enough to be a real event, forwards for
+    /// anything past the jitter. Left alone, the bar keeps its own count, which
+    /// runs at exactly the speed the music does.
+    private func adopt(_ reported: TimeInterval) {
+        var value = max(0, reported)
+        if duration > 0 { value = min(value, duration) }
+        let delta = value - position
+
+        if delta >= forwardTolerance || delta <= -seekThreshold {
+            position = value
+            anchor = (value, Date())
+        } else {
+            // Keep what is on screen and re-base the clock under it, so the
+            // ignored difference cannot accumulate into the next comparison.
+            anchor = (position, Date())
+        }
     }
 
     private func updateTicker() {
