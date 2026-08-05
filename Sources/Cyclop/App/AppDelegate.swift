@@ -2,9 +2,10 @@ import AppKit
 import ServiceManagement
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var controller: NotchController?
     private var statusItem: NSStatusItem?
+    private var clearVaultItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller = NotchController()
@@ -27,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image?.isTemplate = true
 
         let menu = NSMenu()
+        // Enabling is decided here, not guessed from the responder chain: the
+        // clear item below is disabled exactly when the folder is empty.
+        menu.autoenablesItems = false
+        menu.delegate = self
         menu.addItem(withTitle: "Cyclop \(Bundle.main.shortVersion)", action: nil, keyEquivalent: "")
         menu.addItem(.separator())
 
@@ -53,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         saveShots.target = self
-        saveShots.state = saveClipboardImagesEnabled ? .on : .off
+        saveShots.state = NotchViewModel.saveClipboardImagesEnabled ? .on : .off
         menu.addItem(saveShots)
 
         let openFolder = NSMenuItem(
@@ -63,6 +68,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         openFolder.target = self
         menu.addItem(openFolder)
+
+        // Screenshots accumulate forever by design — nothing in that folder is
+        // deleted behind the user's back. This is the other half of that deal:
+        // one visible, hand-operated way out, with the current size right in
+        // the title so the offer names its price.
+        let clearVault = NSMenuItem(
+            title: localized("Clear Screenshots Folder"),
+            action: #selector(clearScreenshots),
+            keyEquivalent: ""
+        )
+        clearVault.target = self
+        menu.addItem(clearVault)
+        clearVaultItem = clearVault
 
         let openSnippets = NSMenuItem(
             title: localized("Show Snippets File"),
@@ -85,20 +103,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.toggle()
     }
 
+    /// The size is measured when the menu opens, not kept fresh in between: a
+    /// folder nobody is looking at deserves no bookkeeping.
+    func menuWillOpen(_ menu: NSMenu) {
+        guard let clearVaultItem else { return }
+        let usage = ScreenshotVault.usage()
+        if usage.files == 0 {
+            clearVaultItem.title = localized("Clear Screenshots Folder")
+            clearVaultItem.isEnabled = false
+        } else {
+            let size = ByteCountFormatter.string(fromByteCount: usage.bytes, countStyle: .file)
+            clearVaultItem.title = localized("Clear Screenshots Folder (%@)", size)
+            clearVaultItem.isEnabled = true
+        }
+    }
+
+    @objc private func clearScreenshots() {
+        ScreenshotVault.clear()
+        // The cards pointing into that folder just went to the Trash with it.
+        controller?.reloadShelf()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
 
-    /// Defaults to on: the feature is the reason the folder exists.
-    private var saveClipboardImagesEnabled: Bool {
-        let defaults = UserDefaults.standard
-        guard defaults.object(forKey: NotchViewModel.saveClipboardImagesKey) != nil else { return true }
-        return defaults.bool(forKey: NotchViewModel.saveClipboardImagesKey)
-    }
-
     @objc private func toggleSaveClipboardImages(_ sender: NSMenuItem) {
-        UserDefaults.standard.set(!saveClipboardImagesEnabled, forKey: NotchViewModel.saveClipboardImagesKey)
-        sender.state = saveClipboardImagesEnabled ? .on : .off
+        UserDefaults.standard.set(
+            !NotchViewModel.saveClipboardImagesEnabled,
+            forKey: NotchViewModel.saveClipboardImagesKey
+        )
+        sender.state = NotchViewModel.saveClipboardImagesEnabled ? .on : .off
     }
 
     @objc private func revealScreenshots() {

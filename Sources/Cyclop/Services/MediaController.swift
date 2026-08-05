@@ -31,6 +31,8 @@ final class MediaController: ObservableObject {
     private var pendingSeek: (target: TimeInterval, at: Date)?
     private var ticker: Timer?
     private var observers: [Any] = []
+    /// Whether the panel is open — the ticker below runs only then.
+    private var isActive = false
 
     // MARK: - Lifecycle
 
@@ -48,10 +50,17 @@ final class MediaController: ObservableObject {
         ticker = nil
     }
 
-    /// Called when the panel opens: a fresh read on open, nothing while closed,
-    /// since the feed pushes changes on its own.
+    /// Panel visibility. The position ticker hangs off this: it exists to move
+    /// a bar, and a bar in a collapsed panel is painted for nobody — at four
+    /// wake-ups a second for as long as anything plays. The position itself is
+    /// never lost, because the anchor records where it stood and when: opening
+    /// computes it from there instantly, and the feed's fresh answer corrects
+    /// whatever drifted a beat later.
     func setActive(_ active: Bool) {
+        isActive = active
+        updateTicker()
         guard active else { return }
+        tick()
         if feedAvailable {
             feed.refresh()
         } else {
@@ -252,12 +261,13 @@ final class MediaController: ObservableObject {
     private func updateTicker() {
         ticker?.invalidate()
         ticker = nil
-        guard isPlaying else { return }
+        guard isPlaying, isActive else { return }
         // Four times a second: the bar advances in sub-pixel steps, so it reads
         // as smooth without any animation smoothing the seek away with it.
         let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
+        timer.tolerance = 0.05
         RunLoop.main.add(timer, forMode: .common)
         ticker = timer
     }

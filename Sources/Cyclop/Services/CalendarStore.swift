@@ -37,6 +37,10 @@ final class CalendarStore: ObservableObject {
     private let store = EKEventStore()
     private var timer: Timer?
     private var observer: Any?
+    /// Whether the panel is open. The half-minute tick serves eyes only — it
+    /// keeps the countdown honest and drops meetings as they end — so it runs
+    /// exactly while there are eyes.
+    private var isActive = false
     /// A day-long horizon leaves the tab empty every evening, which is exactly
     /// when one wonders what tomorrow looks like. A week is still glanceable
     /// because only the next meeting gets the large treatment.
@@ -56,15 +60,26 @@ final class CalendarStore: ObservableObject {
     func start() {
         access = Self.currentAccess()
         guard access == .granted else { return }
-        beginObserving()
+        observe()
         reload()
     }
 
     func stop() {
-        timer?.invalidate()
-        timer = nil
+        stopTimer()
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = nil
+    }
+
+    /// Panel opened or closed. Opening refreshes at once — the countdown must
+    /// be right on the first frame, not thirty seconds in — and starts the
+    /// tick; closing stops it. Meetings still change while the panel is
+    /// closed, but `EKEventStoreChanged` covers that without a clock.
+    func setActive(_ active: Bool) {
+        isActive = active
+        guard active else { return stopTimer() }
+        guard access == .granted else { return }
+        tick()
+        startTimer()
     }
 
     /// Called when the calendar tab is shown. Never prompts — it only notices
@@ -72,8 +87,9 @@ final class CalendarStore: ObservableObject {
     func refreshAccess() {
         access = Self.currentAccess()
         guard access == .granted else { return }
-        if timer == nil { beginObserving() }
+        observe()
         reload()
+        if isActive { startTimer() }
     }
 
     /// Prompts. Only ever called from the button the user presses.
@@ -87,8 +103,9 @@ final class CalendarStore: ObservableObject {
                 guard let self else { return }
                 self.access = granted ? .granted : .denied
                 guard granted else { return }
-                self.beginObserving()
+                self.observe()
                 self.reload()
+                if self.isActive { self.startTimer() }
             }
         }
     }
@@ -101,19 +118,30 @@ final class CalendarStore: ObservableObject {
         }
     }
 
-    private func beginObserving() {
+    private func observe() {
+        guard observer == nil else { return }
         observer = NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged, object: store, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         }
+    }
+
+    private func startTimer() {
+        guard timer == nil else { return }
         // Half a minute is enough for a countdown shown in whole minutes, and
-        // it costs one date comparison.
+        // the generous tolerance lets the system fold the wake-up into others.
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
+        timer.tolerance = 5
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 
     private func tick() {

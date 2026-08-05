@@ -14,6 +14,8 @@
 "Launch at Login" = "Запускать при входе";
 "Save Clipboard Screenshots" = "Сохранять скриншоты из буфера";
 "Show Screenshots Folder" = "Показать папку скриншотов";
+"Clear Screenshots Folder" = "Очистить папку снимков";
+"Clear Screenshots Folder (%@)" = "Очистить папку снимков (%@)";
 "Show Snippets File" = "Показать файл заготовок";
 "Quit" = "Выйти";
 

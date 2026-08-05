@@ -52,4 +52,30 @@ enum ScreenshotVault {
     static func reveal() {
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.path)
     }
+
+    /// What the folder holds right now — for the menu item that offers to
+    /// clear it, so the offer names its price.
+    static func usage() -> (files: Int, bytes: Int64) {
+        let fm = FileManager.default
+        guard let urls = try? fm.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]
+        ) else { return (0, 0) }
+        let bytes = urls.reduce(Int64(0)) { sum, url in
+            sum + Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+        }
+        return (urls.count, bytes)
+    }
+
+    /// To the Trash, not gone. The folder's promise is that nothing in it is
+    /// ever deleted behind the user's back; the menu item is the user's own
+    /// hand, and the Trash keeps even that reversible.
+    static func clear() {
+        let fm = FileManager.default
+        guard let urls = try? fm.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        ) else { return }
+        for url in urls {
+            try? fm.trashItem(at: url, resultingItemURL: nil)
+        }
+    }
 }

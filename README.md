@@ -15,7 +15,7 @@ macOS 15 or newer. The first launch needs one permission granted by hand,
 [here is how](#installation).
 
 ```
-0.0 % CPU at rest  ·  41 MB + 14 MB helper  ·  1.2 MB bundle  ·  one permission, and only on a button
+0.0 % CPU at rest  ·  ≈40 MB + 14 MB helper  ·  2.1 MB bundle  ·  one permission, and only on a button
 ```
 
 The track in the screenshot is playing in a browser tab — Cyclop reads it from
@@ -337,14 +337,31 @@ removed, the daemon closed to platform binaries too), `MediaController` switches
 to scripting Apple Music and Spotify over AppleScript — and then, and only then,
 the system asks for Automation.
 
-**The cost of sitting still.** The pointer sampling rate is adaptive: 60 Hz while
-the panel is open or the pointer is within a 260 pt band along the top edge of
-the screen, and 8 Hz the rest of the time. The band cannot be avoided on the way
-to the notch, so the full rate is always already running by the time hovering
-starts to matter. A constant 60 Hz would cost 0.7 % CPU; adaptive costs 0.0 %.
-The track position timer ticks only during playback, polling the clipboard is one
-`changeCount` read twice a second, and the data itself is only read once that
-counter has moved.
+**The cost of sitting still.** At rest the app does nothing, and that is
+measurable: with the pointer still and the panel collapsed it sits at 0.0 % CPU,
+and a sampling profiler shows the whole process asleep in `mach_msg2_trap`. The
+fractions of a percent appear only while the pointer travels near the top edge
+or the panel is open — the price of interaction, not of idling.
+
+That comes from a rule rather than a trick: a timer runs only while somebody can
+see what it produces. Pointer sampling requires place and motion both: 60 Hz
+only while the pointer has moved recently near the top edge or on the open
+panel; one that has stood still for three seconds drops sampling to 8 Hz
+wherever it stands. Place alone was not enough — a cursor parked in the menu
+bar, which lies entirely inside the warm band, used to hold full rate forever.
+Movement is noticed on the next idle tick, 125 ms at worst, less than the dwell
+a hover has to survive anyway. A sleeping display stops sampling entirely.
+
+The track-position ticker runs only while the panel is open: the position is
+derivable at any moment from an anchor of where it stood and when, and moving a
+bar inside a closed panel — four wake-ups a second for as long as anything
+plays — is painting for nobody. The calendar timer lives only while the panel is
+open; changes to the meetings themselves arrive through `EKEventStoreChanged`
+regardless. Store updates do not repaint a collapsed panel at all. Clipboard
+polling reads one change counter twice a second, and image data is not touched
+while screenshot saving is off — it used to be encoded to PNG in full and thrown
+away. Every timer carries a tolerance so the system can coalesce wake-ups. And
+no leaks: `leaks` against the live process finds zero.
 
 ## Limitations
 
@@ -357,7 +374,9 @@ counter has moved.
 - The shelf references files rather than copying them: move the original and the
   card disappears on the next launch. The exception is clipboard screenshots,
   which are saved into `~/Pictures/Cyclop` and are never deleted automatically,
-  even when the card leaves the shelf. Only the user clears that folder.
+  even when the card leaves the shelf. Only the user clears that folder: the
+  “Clear Screenshots Folder” menu bar item sends its contents to the Trash —
+  a hand too, not a schedule.
 - Entries typed `org.nspasteboard.ConcealedType` (password managers) never enter
   the clipboard history.
 - The join button appears only if the call link is in the event itself — in the

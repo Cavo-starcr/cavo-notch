@@ -27,6 +27,34 @@ final class NotchController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.activeSpaceChanged() }
         }
+        // A dark display has no hover to watch, so the one timer that never
+        // otherwise stops — the pointer sampler — stops with it. The panel
+        // closes too, so waking always starts from the same, folded state.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.setOpen(false)
+                self.pointer.setInside(false)
+                self.pointer.stop()
+            }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.pointer.start() }
+        }
+    }
+
+    /// The screenshots folder can be emptied from the menu bar; the shelf has
+    /// to notice its files are gone without waiting for a relaunch.
+    func reloadShelf() {
+        viewModel?.shelf.load()
     }
 
     /// The panel belongs to the desktop it was opened on. ⌘-Tab to another one
@@ -211,11 +239,13 @@ final class NotchController {
             applyActiveRect(open: true)
             withAnimation(Theme.openAnimation) { vm.isOpen = true }
             vm.media.setActive(true)
+            vm.calendar.setActive(true)
         } else {
             // A collapsed panel has no business holding the keyboard.
             vm.wantsKeyboard = false
             withAnimation(Theme.openAnimation) { vm.isOpen = false }
             vm.media.setActive(false)
+            vm.calendar.setActive(false)
             // Shrink only once the panel has finished collapsing. Doing it
             // while it is still visibly there would leave a window in which
             // clicks land on whatever is behind the panel.

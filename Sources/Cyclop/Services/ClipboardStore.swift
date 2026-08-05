@@ -42,6 +42,11 @@ final class ClipboardStore: ObservableObject {
     /// the clipboard, which would otherwise vanish after one paste.
     var onImage: ((Data) -> Void)?
 
+    /// Whether images are worth reading at all. Asked before the TIFF → PNG
+    /// encode, not after: with screenshot saving switched off, a copied picture
+    /// would otherwise be encoded in full and then thrown away.
+    var wantsImages: () -> Bool = { true }
+
     private var timer: Timer?
     private var lastChangeCount = NSPasteboard.general.changeCount
     private let limit = 40
@@ -53,6 +58,10 @@ final class ClipboardStore: ObservableObject {
         let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.poll() }
         }
+        // The half-second is a ceiling, not a beat: nobody notices a copy
+        // landing in history a fifth of a second late, and the slack lets the
+        // system fold this wake-up into others.
+        timer.tolerance = 0.2
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
@@ -106,20 +115,22 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
-        if let png = pngFromPasteboard(pasteboard) {
-            onImage?(png)
-            return
-        }
+        if wantsImages() {
+            if let png = pngFromPasteboard(pasteboard) {
+                onImage?(png)
+                return
+            }
 
-        // A copy made on the phone arrives in two parts: macOS puts the type on
-        // the pasteboard the moment the phone announces it, and the picture
-        // itself is still coming over the air. So the counter can move while
-        // there are no bytes to read yet — and reading once would drop the
-        // screenshot for good, because the counter has already been marked as
-        // seen. Wait for it instead.
-        if pasteboard.availableType(from: [.png, .tiff]) != nil {
-            awaitImage(at: pasteboard.changeCount, attempt: 0)
-            return
+            // A copy made on the phone arrives in two parts: macOS puts the
+            // type on the pasteboard the moment the phone announces it, and
+            // the picture itself is still coming over the air. So the counter
+            // can move while there are no bytes to read yet — and reading once
+            // would drop the screenshot for good, because the counter has
+            // already been marked as seen. Wait for it instead.
+            if pasteboard.availableType(from: [.png, .tiff]) != nil {
+                awaitImage(at: pasteboard.changeCount, attempt: 0)
+                return
+            }
         }
 
         guard let string = pasteboard.string(forType: .string),

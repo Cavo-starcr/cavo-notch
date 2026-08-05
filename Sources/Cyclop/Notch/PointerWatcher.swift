@@ -36,6 +36,9 @@ final class PointerWatcher {
     var warmZone: CGRect = .zero
     /// Hysteresis: how far below the band the pointer must fall to cool down.
     var coolMargin: CGFloat = 80
+    /// How long the pointer may stand still before sampling drops to the idle
+    /// rate wherever it stands. Movement re-warms on the next idle tick.
+    var restThreshold: TimeInterval = 3
 
     private let fastInterval: TimeInterval = 1.0 / 60
     private let idleInterval: TimeInterval = 1.0 / 8
@@ -48,6 +51,8 @@ final class PointerWatcher {
     private var awaitingSince: Date?
     private var wasInteractive: Bool?
     private var isWarm = false
+    private var lastPoint = CGPoint(x: -1, y: -1)
+    private var lastMovedAt = Date.distantPast
 
     func start() {
         schedule(warm: false)
@@ -66,23 +71,42 @@ final class PointerWatcher {
         let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
-        timer.tolerance = interval / 4
+        // The idle timer may drift by half its beat: nothing it watches for
+        // resolves faster than that, and the slack lets the system fold the
+        // wake-up into others it was making anyway. The fast timer keeps its
+        // precision — it is the one measuring dwell.
+        timer.tolerance = warm ? interval / 4 : interval / 2
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
 
-    /// Full rate while the panel is open or the pointer is near the top edge;
-    /// eight samples a second otherwise, which is free and still notices the
-    /// pointer entering the band well before it reaches the notch.
+    /// Full rate only for a pointer that is actually going somewhere near the
+    /// top; eight samples a second otherwise.
+    ///
+    /// Two conditions, both required. Place: the top band, or anywhere while
+    /// the panel is open — with the same hysteresis as ever. Motion: the
+    /// pointer must have moved recently, because a parked pointer is not on
+    /// its way anywhere, however close to the notch it is parked. The menu
+    /// bar, where cursors spend half their lives, lies entirely inside the
+    /// band — place alone used to mean full rate for as long as one rested
+    /// there. Movement is noticed on the next idle tick, 125 ms at worst,
+    /// which is less than the dwell a hover has to survive anyway — so
+    /// warming up is never the thing anybody is waiting on.
     private func updateRate(for point: CGPoint) {
-        let warm: Bool
-        if isInside {
-            warm = true
-        } else if isWarm {
-            warm = point.y >= warmZone.minY - coolMargin
-        } else {
-            warm = warmZone.contains(point)
+        if point != lastPoint {
+            lastPoint = point
+            lastMovedAt = Date()
         }
+        let moving = Date().timeIntervalSince(lastMovedAt) < restThreshold
+        let near: Bool
+        if isInside {
+            near = true
+        } else if isWarm {
+            near = point.y >= warmZone.minY - coolMargin
+        } else {
+            near = warmZone.contains(point)
+        }
+        let warm = near && moving
         guard warm != isWarm else { return }
         schedule(warm: warm)
     }

@@ -84,6 +84,13 @@ final class NotchViewModel: ObservableObject {
         // their own, so those would only refresh when something else happened
         // to redraw the view.
         //
+        // Forwarded only while the panel is open. Collapsed, there is nothing
+        // these redraws could change — the panel is a black shape — yet the
+        // stores keep their own schedule: a track change every few minutes, a
+        // copy whenever one happens, and each send re-evaluated the whole
+        // view for nobody. Opening repaints from the stores directly, because
+        // `isOpen` is itself @Published and its own send does that.
+        //
         // The two stores with a text field in their pane — the translator and
         // the snippets — are deliberately absent. They change on every
         // keystroke, and redrawing the whole panel per letter costs more than a
@@ -98,7 +105,10 @@ final class NotchViewModel: ObservableObject {
             calendar.objectWillChange,
         ] {
             child
-                .sink { [weak self] _ in self?.objectWillChange.send() }
+                .sink { [weak self] _ in
+                    guard let self, self.isOpen || self.isDropTargeted else { return }
+                    self.objectWillChange.send()
+                }
                 .store(in: &cancellables)
         }
     }
@@ -110,6 +120,13 @@ final class NotchViewModel: ObservableObject {
 
     /// Off switch for people who copy images all day and do not want them kept.
     static let saveClipboardImagesKey = "saveClipboardImages"
+
+    /// Defaults to on: the feature is the reason the folder exists.
+    static var saveClipboardImagesEnabled: Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: saveClipboardImagesKey) != nil else { return true }
+        return defaults.bool(forKey: saveClipboardImagesKey)
+    }
 
     /// Hover and click both land here. A tab that types takes the keyboard
     /// either way: showing a field one cannot type into is worse than briefly
@@ -131,12 +148,14 @@ final class NotchViewModel: ObservableObject {
         // Screenshots reach the shelf through here whether they were taken on
         // this Mac or on a phone: a copy made on the phone arrives in the same
         // pasteboard, carried over by Continuity.
+        //
+        // The switch is asked by the store before it touches image data, not
+        // here after the fact: turned off, a copied picture used to be encoded
+        // to PNG in full just to be dropped on this doorstep — pure heat on
+        // exactly the machines whose owners turned the feature off.
+        clipboard.wantsImages = { Self.saveClipboardImagesEnabled }
         clipboard.onImage = { [weak self] png in
-            guard let self else { return }
-            let defaults = UserDefaults.standard
-            guard defaults.object(forKey: Self.saveClipboardImagesKey) == nil
-                    || defaults.bool(forKey: Self.saveClipboardImagesKey) else { return }
-            guard let url = ScreenshotVault.save(png) else { return }
+            guard let self, let url = ScreenshotVault.save(png) else { return }
             self.shelf.add([url])
             self.tab = .shelf
         }
