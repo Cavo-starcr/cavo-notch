@@ -119,9 +119,16 @@ struct NotesPane: View {
                 // text swaps inside a view that never dies, so there is no
                 // cleanup and nothing to race. AppKit clamps the caret to the
                 // new text's length — for a fresh note that is position zero,
-                // exactly where it belongs. The cost is a shared undo stack:
-                // ⌘Z pressed right after switching notes can pull the other
-                // note's text in — livable for jottings this short-lived.
+                // exactly where it belongs.
+                //
+                // A shared undo stack looked like the price of this, but
+                // measurement says otherwise: ⌘Z undoes typing fine within a
+                // note, and after switching notes the old actions are simply
+                // inert — deleted text does not resurface in the neighbour,
+                // in either note, on any press. The programmatic text swap
+                // leaves the stale actions unable to apply. Verified by
+                // driving the real app: type, delete, switch, ⌘Z twice,
+                // read the store after each step.
                 //
                 // Asked in onAppear because on arrival at the tab the request
                 // must come from a view that exists (see SnippetsPane).
