@@ -104,14 +104,29 @@ struct NotchGeometry {
         )
     }
 
+    /// Depth of the collapsed target, measured down from the top edge.
+    ///
+    /// A real notch is a hole: the whole of it can be claimed, because there is
+    /// nothing underneath to claim it from. A synthetic one is cut out of a
+    /// working menu bar — and the middle of the bar is where status items pile
+    /// up once there are a few (measured on a 13" M1: they start at x≈757 while
+    /// the synthetic notch spans 630…810). Claiming the full bar height there
+    /// puts the panel in front of icons the user is aiming at. A strip along the
+    /// very top edge is reached by throwing the pointer up — the same gesture as
+    /// ever — while a pointer travelling to an icon stays below it.
+    var collapsedDepth: CGFloat { isPhysical ? notchSize.height : 8 }
+
+    /// Size of the collapsed target: the notch itself, or the strip above.
+    var collapsedSize: CGSize { CGSize(width: notchSize.width, height: collapsedDepth) }
+
     /// Hover target while collapsed, in global screen coordinates. Slightly
     /// taller than the notch so the panel opens just before the pointer lands.
     var hoverRect: CGRect {
         includingTopEdge(CGRect(
             x: notchCenterX - notchSize.width / 2 - 6,
-            y: screen.frame.maxY - notchSize.height - 4,
+            y: screen.frame.maxY - collapsedDepth - (isPhysical ? 4 : 0),
             width: notchSize.width + 12,
-            height: notchSize.height + 4
+            height: collapsedDepth + (isPhysical ? 4 : 0)
         ))
     }
 
