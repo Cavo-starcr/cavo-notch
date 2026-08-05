@@ -33,9 +33,18 @@ struct NotchGeometry {
 
         // No notch: pretend there is one the size of a typical MacBook cutout so
         // the app still works on external displays and pre-2021 machines.
+        //
+        // The height has to be the menu bar's own, not `NSStatusBar.thickness`:
+        // the two disagree by several points (22 against 30 on a 13" M1 running
+        // macOS 26), and the shape is drawn filled black, so anything short of
+        // the bar's height reads as a tab stuck onto the menu bar rather than a
+        // cutout of it. `visibleFrame` is what the menu bar actually took —
+        // measured, not assumed. It collapses to zero when the bar auto-hides,
+        // which is what the floor is for.
+        let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
         return NotchGeometry(
             screen: screen,
-            notchSize: CGSize(width: 180, height: max(NSStatusBar.system.thickness, 24)),
+            notchSize: CGSize(width: 180, height: max(menuBarHeight, NSStatusBar.system.thickness, 24)),
             notchCenterX: screen.frame.midX,
             isPhysical: false
         )
