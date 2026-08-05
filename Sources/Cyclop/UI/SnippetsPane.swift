@@ -20,7 +20,6 @@ struct SnippetsPane: View {
             list
         }
         .padding(.top, 2)
-        .onAppear { focused = wantsKeyboard ? .search : nil }
         .onChange(of: wantsKeyboard) { _, wants in
             guard !wants else {
                 focused = isAdding ? .text : .search
@@ -72,6 +71,10 @@ struct SnippetsPane: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { focused = .search }
+        // Same reason as the editor: the row asks for the caret once it is
+        // actually on screen, so arriving on the tab and coming back from the
+        // editor both land the same way.
+        .onAppear { if wantsKeyboard { focused = .search } }
     }
 
     // MARK: - Adding
@@ -80,25 +83,35 @@ struct SnippetsPane: View {
     /// is two rows tall in a panel that never resizes, and one of the two is
     /// the list.
     private var editor: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
+            // Each field on its own surface. A hairline between them read as a
+            // caret sitting in the wrong place — exactly where one is expected,
+            // which is the worst place for something that only looks like one.
             TextField(localized("Name"), text: $draftLabel)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.white)
                 .tint(Theme.secondary)
-                .frame(width: 96)
+                .padding(.horizontal, 7)
+                .frame(width: 104, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Theme.surface)
+                )
                 .focused($focused, equals: .label)
                 .onSubmit { commit() }
-
-            Rectangle()
-                .fill(Theme.tertiary.opacity(0.4))
-                .frame(width: 1, height: 12)
 
             TextField(localized("Text"), text: $draftText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11))
                 .foregroundStyle(.white)
                 .tint(Theme.secondary)
+                .padding(.horizontal, 7)
+                .frame(height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Theme.surface)
+                )
                 .focused($focused, equals: .text)
                 .onSubmit { commit() }
 
@@ -117,12 +130,20 @@ struct SnippetsPane: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 9)
-        .frame(height: 24)
+        .padding(.horizontal, 6)
+        .frame(height: 28)
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(Theme.surfaceHover)
         )
+        // Asked for here rather than where the editor is switched on: at that
+        // moment this field does not exist yet, and a focus request aimed at a
+        // view that is not in the hierarchy is simply dropped. The row would
+        // appear with no caret in it, and nothing to type into until clicked.
+        //
+        // The value is the part that cannot be left out, so the caret starts
+        // there; the name is a step back for those who want one.
+        .onAppear { focused = .text }
         // Escape leaves the draft rather than the tab. Caught on the row so it
         // works from either field.
         .onKeyPress(.escape) {
@@ -134,18 +155,19 @@ struct SnippetsPane: View {
     private func beginAdding() {
         draftLabel = ""
         draftText = ""
+        // The search field goes away with the row, but the filter behind it
+        // would not: a snippet added under a live filter lands in the list and
+        // is hidden by it in the same breath, which looks like it was not added
+        // at all.
+        snippets.query = ""
         isAdding = true
         wantsKeyboard = true
-        // The value is the part that cannot be left out, so the caret starts
-        // there; the name is a step back for those who want one.
-        focused = .text
     }
 
     private func cancelAdding() {
         isAdding = false
         draftLabel = ""
         draftText = ""
-        focused = .search
     }
 
     private func commit() {
