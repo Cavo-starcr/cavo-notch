@@ -101,7 +101,7 @@ struct CalendarPane: View {
         var parts = [Self.day(for: meeting.start)].compactMap { $0 }
         parts.append("\(Self.clock.string(from: meeting.start))–\(Self.clock.string(from: meeting.end))")
         if let provider = meeting.provider { parts.append(provider) }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: " · ").sentenceCased
     }
 
     static let clock: DateFormatter = {
@@ -122,23 +122,30 @@ struct CalendarPane: View {
     static func day(for date: Date) -> String? {
         let calendar = Foundation.Calendar.current
         if calendar.isDateInToday(date) { return nil }
-        if calendar.isDateInTomorrow(date) { return localized("Tomorrow") }
+        if calendar.isDateInTomorrow(date) { return localized("tomorrow") }
         return weekday.string(from: date)
     }
 
-    /// "через 12 мин" / "идёт сейчас" — shown in the panel header.
+    /// "Через 12 мин" / "Идёт сейчас" — shown in the panel header, on its own,
+    /// so it is a label and starts with a capital in either language.
     static func countdown(to meeting: CalendarStore.Meeting, from now: Date) -> String {
-        if meeting.isRunning { return localized("Now") }
+        phrase(to: meeting, from: now).sentenceCased
+    }
+
+    /// The wording alone, lower-case as the languages have it. Kept apart from
+    /// the capital so the same phrases could stand mid-sentence one day.
+    private static func phrase(to meeting: CalendarStore.Meeting, from now: Date) -> String {
+        if meeting.isRunning { return localized("now") }
         let minutes = Int((meeting.start.timeIntervalSince(now) / 60).rounded(.up))
-        if minutes <= 0 { return localized("Any moment") }
-        if minutes < 60 { return localized("In %d min", minutes) }
+        if minutes <= 0 { return localized("any moment") }
+        if minutes < 60 { return localized("in %d min", minutes) }
         let hours = minutes / 60
         if hours < 24 {
             let rest = minutes % 60
-            return rest == 0 ? localized("In %d h", hours) : localized("In %d h %d min", hours, rest)
+            return rest == 0 ? localized("in %d h", hours) : localized("in %d h %d min", hours, rest)
         }
         let days = hours / 24
-        return days == 1 ? localized("tomorrow") : localized("In %d d", days)
+        return days == 1 ? localized("tomorrow") : localized("in %d d", days)
     }
 
     // MARK: - States
