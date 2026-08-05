@@ -4,6 +4,21 @@ struct ShelfPane: View {
     @ObservedObject var shelf: ShelfStore
     var isTargeted: Bool
 
+    /// Which card the pointer is over — decided by the pane, not by the cards.
+    ///
+    /// Per-card `onHover` breaks on the shelf's most repetitive gesture:
+    /// deleting cards one after another. Hover events are made of mouse
+    /// movement, and when a deleted card's neighbour slides under a pointer
+    /// that has not moved, there are no events — the neighbour never learns it
+    /// is hovered, its ✕ never appears, and the click meant to delete it
+    /// selects it instead, until a stray wiggle of the mouse fixes everything.
+    /// So the pane tracks the pointer and every card's frame itself, and
+    /// re-decides on either change: the pointer moving, or the cards moving
+    /// under it. Scrolling the strip is the same case and heals the same way.
+    @State private var hoveredID: UUID?
+    @State private var hoverPoint: CGPoint?
+    @State private var frames: [UUID: CGRect] = [:]
+
     var body: some View {
         VStack(spacing: 0) {
             if shelf.items.isEmpty {
@@ -12,17 +27,47 @@ struct ShelfPane: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(shelf.items) { item in
-                            ShelfCard(item: item, shelf: shelf)
+                            ShelfCard(item: item, shelf: shelf, isHovered: hoveredID == item.id)
+                                .background(
+                                    GeometryReader { geo in
+                                        Color.clear.preference(
+                                            key: CardFramesKey.self,
+                                            value: [item.id: geo.frame(in: .named("shelf"))]
+                                        )
+                                    }
+                                )
                         }
                     }
                     .padding(.horizontal, 2)
                     .frame(maxHeight: .infinity)
+                }
+                .coordinateSpace(name: "shelf")
+                .onContinuousHover(coordinateSpace: .named("shelf")) { phase in
+                    switch phase {
+                    case .active(let point):
+                        hoverPoint = point
+                        rehit()
+                    case .ended:
+                        hoverPoint = nil
+                        hoveredID = nil
+                    }
+                }
+                .onPreferenceChange(CardFramesKey.self) { new in
+                    frames = new
+                    rehit()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 footer
             }
         }
         .padding(.top, 2)
+    }
+
+    /// The one decision both signals feed: which frame holds the last known
+    /// pointer position.
+    private func rehit() {
+        guard let hoverPoint else { return }
+        hoveredID = frames.first(where: { $0.value.contains(hoverPoint) })?.key
     }
 
     private var dropHint: some View {
@@ -67,10 +112,19 @@ struct ShelfPane: View {
     }
 }
 
+private struct CardFramesKey: PreferenceKey {
+    static let defaultValue: [UUID: CGRect] = [:]
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
 private struct ShelfCard: View {
     let item: ShelfItem
     @ObservedObject var shelf: ShelfStore
-    @State private var hovering = false
+    /// Handed down from the pane, which is the one place that can know it
+    /// correctly when cards move under a stationary pointer.
+    let isHovered: Bool
 
     private var isSelected: Bool { shelf.isSelected(item) }
 
@@ -96,7 +150,7 @@ private struct ShelfCard: View {
         .frame(width: 86, height: 92)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? Color.white.opacity(0.18) : (hovering ? Theme.surfaceHover : Theme.surface))
+                .fill(isSelected ? Color.white.opacity(0.18) : (isHovered ? Theme.surfaceHover : Theme.surface))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -123,7 +177,7 @@ private struct ShelfCard: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            if hovering {
+            if isHovered {
                 Button { shelf.remove(item) } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 13))
@@ -134,7 +188,6 @@ private struct ShelfCard: View {
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .onHover { hovering = $0 }
         .contextMenu {
             Button("Copy") { shelf.copy(item) }
             Button("Open") { shelf.open(item) }
@@ -142,7 +195,7 @@ private struct ShelfCard: View {
             Divider()
             Button("Remove from Shelf") { shelf.remove(item) }
         }
-        .animation(Theme.contentAnimation, value: hovering)
+        .animation(Theme.contentAnimation, value: isHovered)
         .animation(Theme.contentAnimation, value: isSelected)
     }
 }
