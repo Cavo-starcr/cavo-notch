@@ -167,3 +167,4 @@ extension Bundle {
         (infoDictionary?["CFBundleShortVersionString"] as? String) ?? "dev"
     }
 }
+

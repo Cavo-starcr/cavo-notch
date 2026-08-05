@@ -10,6 +10,9 @@ final class NotchController {
     private let pointer = PointerWatcher()
     private var closeActiveRectWork: DispatchWorkItem?
     private var cancellables = Set<AnyCancellable>()
+    /// Monotonic stamp for the deferred half of closing: any newer open or
+    /// close outdates the one still in flight.
+    private var openGeneration = 0
 
     func install() {
         build()
@@ -231,6 +234,7 @@ final class NotchController {
     /// kept, so coming back finds it where it was left.
     private func setOpen(_ open: Bool) {
         guard let vm = viewModel, vm.isOpen != open else { return }
+        openGeneration += 1
         closeActiveRectWork?.cancel()
 
         if open {
@@ -241,18 +245,35 @@ final class NotchController {
             vm.media.setActive(true)
             vm.calendar.setActive(true)
         } else {
-            // A collapsed panel has no business holding the keyboard.
+            // The keyboard goes first and the fold goes second — one run-loop
+            // pass apart, never together. Dropped in the same pass, resigning
+            // the field's first responder and structurally removing that field
+            // land in one transaction, and SwiftUI applies the state but loses
+            // the repaint: the panel stands on screen fully expanded with
+            // `isOpen` already false, wedged until the next hover repaints it.
+            // That was the translate tab "hanging open" — type, move the
+            // pointer away, and the picture stayed while the state closed.
             vm.wantsKeyboard = false
-            withAnimation(Theme.openAnimation) { vm.isOpen = false }
-            vm.media.setActive(false)
-            vm.calendar.setActive(false)
-            // Shrink only once the panel has finished collapsing. Doing it
-            // while it is still visibly there would leave a window in which
-            // clicks land on whatever is behind the panel.
-            let work = DispatchWorkItem { [weak self] in self?.applyActiveRect(open: false) }
-            closeActiveRectWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+            let generation = openGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.openGeneration == generation else { return }
+                self.collapse()
+            }
         }
+    }
+
+    /// The visual half of closing, one pass after the keyboard was let go.
+    private func collapse() {
+        guard let vm = viewModel, vm.isOpen else { return }
+        withAnimation(Theme.openAnimation) { vm.isOpen = false }
+        vm.media.setActive(false)
+        vm.calendar.setActive(false)
+        // Shrink only once the panel has finished collapsing. Doing it
+        // while it is still visibly there would leave a window in which
+        // clicks land on whatever is behind the panel.
+        let work = DispatchWorkItem { [weak self] in self?.applyActiveRect(open: false) }
+        closeActiveRectWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
     }
 
     private func scheduleCollapseIfPointerAway() {
@@ -283,3 +304,4 @@ final class NotchController {
             .insetBy(dx: open ? -Theme.openTopRadius : 0, dy: 0)
     }
 }
+
