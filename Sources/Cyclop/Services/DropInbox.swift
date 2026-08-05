@@ -46,6 +46,7 @@ final class DropInbox {
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "com.cyclop.inbox")
+    private nonisolated let desk = Desk()
 
     // MARK: - Lifecycle
 
@@ -62,11 +63,21 @@ final class DropInbox {
 
             listener.newConnectionHandler = { [weak self] connection in
                 guard let self else { connection.cancel(); return }
-                Intake(connection: connection, queue: self.queue, path: path) { data, ext in
-                    DispatchQueue.main.async {
-                        MainActor.assumeIsolated { self.received(data, ext: ext) }
+                // Anyone on the network can open a socket — the secret only
+                // guards what a request may do, not whether it may arrive. So
+                // the desk decides first, and it can say no.
+                guard self.desk.admit() else { connection.cancel(); return }
+                Intake(
+                    connection: connection,
+                    queue: self.queue,
+                    path: path,
+                    onFinish: { [desk = self.desk] in desk.release() },
+                    onImage: { data, ext in
+                        DispatchQueue.main.async {
+                            MainActor.assumeIsolated { self.received(data, ext: ext) }
+                        }
                     }
-                }.start()
+                ).start()
             }
             listener.stateUpdateHandler = { state in
                 if case .failed(let error) = state {
@@ -91,6 +102,29 @@ final class DropInbox {
     }
 }
 
+/// How many requests may be in flight at once.
+///
+/// Confined to the listener's queue: `admit` and `release` are only ever called
+/// from Network's own callbacks, which all arrive there. Without a ceiling, a
+/// machine on the same network can hold sockets open and never send anything,
+/// and each one costs a buffer — the classic way to bleed a server that has no
+/// authentication until after the headers arrive. A phone sends one picture at
+/// a time; four is already generous.
+private final class Desk: @unchecked Sendable {
+    private var live = 0
+    private let ceiling = 4
+
+    func admit() -> Bool {
+        guard live < ceiling else { return false }
+        live += 1
+        return true
+    }
+
+    func release() {
+        live = max(0, live - 1)
+    }
+}
+
 /// One request: read to the end, answered, closed.
 ///
 /// Confined to the listener's queue — every callback Network hands back arrives
@@ -100,24 +134,40 @@ private final class Intake {
     /// Room for a screenshot at any resolution, and far short of anything worth
     /// filling a disk with.
     private static let limit = 40 * 1024 * 1024
+    /// Headers this long are not headers. Anything before the blank line is
+    /// read while the sender is still a stranger, so it is kept small.
+    private static let headerLimit = 16 * 1024
+    /// Two clocks, because the two halves of a request deserve different
+    /// patience. Anyone may open a socket, so an unidentified one gets only
+    /// long enough to send a request line — otherwise four silent sockets could
+    /// hold the desk shut for as long as they liked. Once the secret has
+    /// matched, the sender is the phone, and a picture may take its time.
+    private static let greeting: TimeInterval = 5
+    private static let deadline: TimeInterval = 30
 
     private let connection: NWConnection
     private let queue: DispatchQueue
     private let path: String
+    private let onFinish: () -> Void
     private let onImage: (Data, String) -> Void
 
     private var buffer = Data()
     private var answered = false
+    private var closed = false
+    /// Set once the path — and with it the secret — has matched.
+    private var known = false
 
     init(
         connection: NWConnection,
         queue: DispatchQueue,
         path: String,
+        onFinish: @escaping () -> Void,
         onImage: @escaping (Data, String) -> Void
     ) {
         self.connection = connection
         self.queue = queue
         self.path = path
+        self.onFinish = onFinish
         self.onImage = onImage
     }
 
@@ -125,11 +175,31 @@ private final class Intake {
         // The router keeps the outside out, but saying so costs one comparison:
         // whatever reaches this port is answered only if it lives on this net.
         guard isLocal(connection.endpoint) else {
-            connection.cancel()
+            close()
             return
         }
+        connection.stateUpdateHandler = { [weak self] state in
+            switch state {
+            case .failed, .cancelled: self?.close()
+            default: break
+            }
+        }
+        queue.asyncAfter(deadline: .now() + Self.greeting) { [weak self] in
+            guard let self, !self.known else { return }
+            self.close()
+        }
+        queue.asyncAfter(deadline: .now() + Self.deadline) { [weak self] in self?.close() }
         connection.start(queue: queue)
         receive()
+    }
+
+    /// Idempotent, and the only way the desk ever gets its slot back — every
+    /// path out of here goes through it, including the ones nobody plans for.
+    private func close() {
+        guard !closed else { return }
+        closed = true
+        connection.cancel()
+        onFinish()
     }
 
     private func receive() {
@@ -140,14 +210,20 @@ private final class Intake {
                 guard buffer.count <= Self.limit else { return reply("413 Payload Too Large") }
                 if handle() { return }
             }
-            guard error == nil, !isComplete else { return connection.cancel() }
+            guard error == nil, !isComplete else { return close() }
             receive()
         }
     }
 
     /// True once the request is whole and has been answered.
     private func handle() -> Bool {
-        guard let blank = buffer.range(of: Data("\r\n\r\n".utf8)) else { return false }
+        guard let blank = buffer.range(of: Data("\r\n\r\n".utf8)) else {
+            // Still no blank line, and the sender is still unidentified. Cut it
+            // off rather than keep growing a buffer for whoever it turns out
+            // to be.
+            if buffer.count > Self.headerLimit { reply("431 Request Header Fields Too Large") }
+            return false
+        }
 
         let head = String(decoding: buffer[..<blank.lowerBound], as: UTF8.self)
         let lines = head.components(separatedBy: "\r\n")
@@ -170,6 +246,7 @@ private final class Intake {
             reply("404 Not Found")
             return true
         }
+        known = true
         guard length > 0, length <= Self.limit else { reply("400 Bad Request"); return true }
         // Body still on its way.
         guard buffer.distance(from: blank.upperBound, to: buffer.endIndex) >= length else { return false }
@@ -196,7 +273,7 @@ private final class Intake {
             """
         connection.send(
             content: Data(head.utf8) + payload,
-            completion: .contentProcessed { [connection] _ in connection.cancel() }
+            completion: .contentProcessed { [weak self] _ in self?.close() }
         )
     }
 
