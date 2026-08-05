@@ -122,23 +122,23 @@ struct CalendarPane: View {
     static func day(for date: Date) -> String? {
         let calendar = Foundation.Calendar.current
         if calendar.isDateInToday(date) { return nil }
-        if calendar.isDateInTomorrow(date) { return localized("tomorrow") }
+        if calendar.isDateInTomorrow(date) { return localized("Tomorrow") }
         return weekday.string(from: date)
     }
 
     /// "через 12 мин" / "идёт сейчас" — shown in the panel header.
     static func countdown(to meeting: CalendarStore.Meeting, from now: Date) -> String {
-        if meeting.isRunning { return localized("now") }
+        if meeting.isRunning { return localized("Now") }
         let minutes = Int((meeting.start.timeIntervalSince(now) / 60).rounded(.up))
-        if minutes <= 0 { return localized("any moment") }
-        if minutes < 60 { return localized("in %d min", minutes) }
+        if minutes <= 0 { return localized("Any moment") }
+        if minutes < 60 { return localized("In %d min", minutes) }
         let hours = minutes / 60
         if hours < 24 {
             let rest = minutes % 60
-            return rest == 0 ? localized("in %d h", hours) : localized("in %d h %d min", hours, rest)
+            return rest == 0 ? localized("In %d h", hours) : localized("In %d h %d min", hours, rest)
         }
         let days = hours / 24
-        return days == 1 ? localized("tomorrow") : localized("in %d d", days)
+        return days == 1 ? localized("tomorrow") : localized("In %d d", days)
     }
 
     // MARK: - States

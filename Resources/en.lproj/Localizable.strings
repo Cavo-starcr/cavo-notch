@@ -58,13 +58,13 @@
 
 /* Countdown. Abbreviated on purpose: a panel header has room for "in 12 min"
    and not for a spelled-out plural, and abbreviations decline in no language. */
-"now" = "now";
-"any moment" = "any moment";
-"tomorrow" = "tomorrow";
-"in %d min" = "in %d min";
-"in %d h" = "in %d h";
-"in %d h %d min" = "in %d h %d min";
-"in %d d" = "in %d d";
+"Now" = "Now";
+"Any moment" = "Any moment";
+"Tomorrow" = "Tomorrow";
+"In %d min" = "In %d min";
+"In %d h" = "In %d h";
+"In %d h %d min" = "In %d h %d min";
+"In %d d" = "In %d d";
 
 /* Saved screenshots. The key is the date format itself, so a language can put
    the parts in its own order. */
