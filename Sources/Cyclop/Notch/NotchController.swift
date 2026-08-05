@@ -58,14 +58,6 @@ final class NotchController {
         panel?.orderOut(nil)
     }
 
-    /// Brings the two background listeners in line with their menu switches, so
-    /// flipping one takes effect where it was flipped rather than next launch.
-    func refreshServices() {
-        guard let vm = viewModel else { return }
-        if AirDropWatcher.isEnabled { vm.airdrop.start() } else { vm.airdrop.stop() }
-        if DropInbox.isEnabled { vm.inbox.start() } else { vm.inbox.stop() }
-    }
-
     func toggle() {
         guard let viewModel else { return }
         setOpen(!viewModel.isOpen)

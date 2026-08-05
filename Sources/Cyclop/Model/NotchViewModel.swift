@@ -67,8 +67,6 @@ final class NotchViewModel: ObservableObject {
     let calendar: CalendarStore
     let translator: Translator
     let snippets: SnippetStore
-    let airdrop: AirDropWatcher
-    let inbox: DropInbox
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -80,8 +78,6 @@ final class NotchViewModel: ObservableObject {
         self.calendar = CalendarStore()
         self.translator = Translator()
         self.snippets = SnippetStore()
-        self.airdrop = AirDropWatcher()
-        self.inbox = DropInbox()
 
         // The panel header reads through to the stores — counters, the source
         // name, the equalizer. Nested ObservableObjects do not propagate on
@@ -132,6 +128,9 @@ final class NotchViewModel: ObservableObject {
         // never prompts on its own.
         calendar.start()
 
+        // Screenshots reach the shelf through here whether they were taken on
+        // this Mac or on a phone: a copy made on the phone arrives in the same
+        // pasteboard, carried over by Continuity.
         clipboard.onImage = { [weak self] png in
             guard let self else { return }
             let defaults = UserDefaults.standard
@@ -142,30 +141,12 @@ final class NotchViewModel: ObservableObject {
             self.tab = .shelf
         }
         clipboard.start()
-
-        // Files are referenced where they lie, so an AirDropped picture stays
-        // in Downloads and the shelf merely points at it — the same deal as a
-        // file dragged onto the notch by hand.
-        airdrop.onArrival = { [weak self] urls in
-            guard let self else { return }
-            self.shelf.add(urls)
-            self.tab = .shelf
-        }
-        inbox.onArrival = { [weak self] urls in
-            guard let self else { return }
-            self.shelf.add(urls)
-            self.tab = .shelf
-        }
-        airdrop.start()
-        inbox.start()
     }
 
     func stop() {
         media.stop()
         clipboard.stop()
         calendar.stop()
-        airdrop.stop()
-        inbox.stop()
     }
 
     func accept(urls: [URL]) -> Bool {

@@ -41,10 +41,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <string>Cyclop показывает ближайшие встречи и кнопку подключения к ним.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>Cyclop показывает ближайшие встречи и кнопку подключения к ним.</string>
-    <key>NSDownloadsFolderUsageDescription</key>
-    <string>Cyclop замечает картинки, присланные по AirDrop, и кладёт их на полку.</string>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>Cyclop принимает снимки экрана, отправленные с телефона по локальной сети.</string>
     <key>NSHumanReadableCopyright</key><string>MIT License</string>
 </dict>
 </plist>

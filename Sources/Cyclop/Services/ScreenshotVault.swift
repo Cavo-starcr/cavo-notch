@@ -31,26 +31,17 @@ enum ScreenshotVault {
         return formatter
     }()
 
-    /// `named` and `ext` are spelled out because pictures arrive from more than
-    /// one place now: the clipboard hands over a PNG, the phone hands over
-    /// whatever it took the shot in, and the name is what tells them apart in
-    /// the folder a month later.
-    static func save(
-        _ data: Data,
-        named name: String = "Снимок",
-        ext: String = "png",
-        at date: Date = Date()
-    ) -> URL? {
-        let base = "\(name) \(stamp.string(from: date))"
-        var url = folder.appendingPathComponent("\(base).\(ext)")
+    static func save(_ png: Data, at date: Date = Date()) -> URL? {
+        let base = "Снимок \(stamp.string(from: date))"
+        var url = folder.appendingPathComponent("\(base).png")
         // Two screenshots inside one second would otherwise collide.
         var attempt = 2
         while FileManager.default.fileExists(atPath: url.path) {
-            url = folder.appendingPathComponent("\(base) (\(attempt)).\(ext)")
+            url = folder.appendingPathComponent("\(base) (\(attempt)).png")
             attempt += 1
         }
         do {
-            try data.write(to: url, options: .atomic)
+            try png.write(to: url, options: .atomic)
             return url
         } catch {
             NSLog("Cyclop: failed to save image: \(error.localizedDescription)")
