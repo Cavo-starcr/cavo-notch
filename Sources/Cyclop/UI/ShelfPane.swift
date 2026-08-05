@@ -47,18 +47,18 @@ struct ShelfPane: View {
     private var footer: some View {
         HStack(spacing: 10) {
             if !shelf.selection.isEmpty {
-                Text("Выбрано: \(shelf.selection.count)")
+                Text(localized("Selected: %d", shelf.selection.count))
                     .font(.system(size: 9))
                     .foregroundStyle(Theme.tertiary)
             }
             Spacer()
             if !shelf.selection.isEmpty {
-                Button("Снять выбор") { shelf.clearSelection() }
+                Button("Deselect") { shelf.clearSelection() }
                     .buttonStyle(.plain)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Theme.secondary)
             }
-            Button("Очистить") { shelf.clear() }
+            Button("Clear") { shelf.clear() }
                 .buttonStyle(.plain)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Theme.secondary)
@@ -136,11 +136,11 @@ private struct ShelfCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onHover { hovering = $0 }
         .contextMenu {
-            Button("Копировать") { shelf.copy(item) }
-            Button("Открыть") { shelf.open(item) }
-            Button("Показать в Finder") { shelf.reveal(item) }
+            Button("Copy") { shelf.copy(item) }
+            Button("Open") { shelf.open(item) }
+            Button("Show in Finder") { shelf.reveal(item) }
             Divider()
-            Button("Убрать с полки") { shelf.remove(item) }
+            Button("Remove from Shelf") { shelf.remove(item) }
         }
         .animation(Theme.contentAnimation, value: hovering)
         .animation(Theme.contentAnimation, value: isSelected)

@@ -160,7 +160,7 @@ struct MediaPane: View {
                 .foregroundStyle(Theme.tertiary)
             // Status, not instruction: an empty pane on its own would not say
             // whether nothing is playing or nothing could be read.
-            Text("Ничего не играет")
+            Text("Nothing is playing")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.secondary)
         }

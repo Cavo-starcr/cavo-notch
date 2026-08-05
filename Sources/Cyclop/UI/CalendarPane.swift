@@ -47,7 +47,7 @@ struct CalendarPane: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "video.fill").font(.system(size: 10))
-                            Text(next.provider.map { "Подключиться · \($0)" } ?? "Подключиться")
+                            Text(next.provider.map { localized("Join · %@", $0) } ?? localized("Join"))
                                 .font(.system(size: 11, weight: .medium))
                         }
                         .padding(.horizontal, 12)
@@ -88,7 +88,7 @@ struct CalendarPane: View {
                 }
             }
             if calendar.upcoming.isEmpty {
-                Text("Других встреч на неделе нет")
+                Text("No other meetings this week")
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.tertiary)
             }
@@ -112,7 +112,7 @@ struct CalendarPane: View {
 
     private static let weekday: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = Locale(identifier: appLanguage)
         formatter.dateFormat = "EEEE, d MMMM"
         return formatter
     }()
@@ -122,23 +122,23 @@ struct CalendarPane: View {
     static func day(for date: Date) -> String? {
         let calendar = Foundation.Calendar.current
         if calendar.isDateInToday(date) { return nil }
-        if calendar.isDateInTomorrow(date) { return "завтра" }
+        if calendar.isDateInTomorrow(date) { return localized("tomorrow") }
         return weekday.string(from: date)
     }
 
     /// "через 12 мин" / "идёт сейчас" — shown in the panel header.
     static func countdown(to meeting: CalendarStore.Meeting, from now: Date) -> String {
-        if meeting.isRunning { return "идёт сейчас" }
+        if meeting.isRunning { return localized("now") }
         let minutes = Int((meeting.start.timeIntervalSince(now) / 60).rounded(.up))
-        if minutes <= 0 { return "вот-вот" }
-        if minutes < 60 { return "через \(minutes) мин" }
+        if minutes <= 0 { return localized("any moment") }
+        if minutes < 60 { return localized("in %d min", minutes) }
         let hours = minutes / 60
         if hours < 24 {
             let rest = minutes % 60
-            return rest == 0 ? "через \(hours) ч" : "через \(hours) ч \(rest) мин"
+            return rest == 0 ? localized("in %d h", hours) : localized("in %d h %d min", hours, rest)
         }
         let days = hours / 24
-        return days == 1 ? "завтра" : "через \(days) дн"
+        return days == 1 ? localized("tomorrow") : localized("in %d d", days)
     }
 
     // MARK: - States
@@ -148,10 +148,10 @@ struct CalendarPane: View {
             Image(systemName: "calendar")
                 .font(.system(size: 22, weight: .light))
                 .foregroundStyle(Theme.tertiary)
-            Text("Показать ближайшие встречи")
+            Text("See your next meetings")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.secondary)
-            Text("Нужен доступ к Календарю. Это единственное разрешение,\nкоторое просит Cyclop — и только для этой вкладки.")
+            Text("Cyclop needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab.")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiary)
                 .multilineTextAlignment(.center)
@@ -161,7 +161,7 @@ struct CalendarPane: View {
             Button {
                 calendar.requestAccess()
             } label: {
-                Text("Разрешить")
+                Text("Allow")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14)
@@ -180,10 +180,10 @@ struct CalendarPane: View {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.system(size: 22, weight: .light))
                 .foregroundStyle(Theme.tertiary)
-            Text("Доступ к Календарю закрыт")
+            Text("Calendar access is off")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.secondary)
-            Text("Настройки → Конфиденциальность → Календари")
+            Text("Settings → Privacy → Calendars")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiary)
         }
@@ -195,10 +195,10 @@ struct CalendarPane: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 22, weight: .light))
                 .foregroundStyle(Theme.tertiary)
-            Text("Встреч больше нет")
+            Text("No more meetings")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.secondary)
-            Text("В ближайшие сутки календарь пуст")
+            Text("Nothing on the calendar for the next day")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiary)
         }

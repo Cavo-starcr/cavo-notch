@@ -20,12 +20,12 @@ final class NotchViewModel: ObservableObject {
 
         var title: String {
             switch self {
-            case .media: return "Музыка"
-            case .shelf: return "Полка"
-            case .clipboard: return "Буфер"
-            case .snippets: return "Заготовки"
-            case .calendar: return "Календарь"
-            case .translate: return "Перевод"
+            case .media: return localized("Music")
+            case .shelf: return localized("Shelf")
+            case .clipboard: return localized("Clipboard")
+            case .snippets: return localized("Snippets")
+            case .calendar: return localized("Calendar")
+            case .translate: return localized("Translate")
             }
         }
 

@@ -27,12 +27,12 @@ enum ScreenshotVault {
     private static let stamp: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd 'в' HH.mm.ss"
+        formatter.dateFormat = localized("yyyy-MM-dd 'at' HH.mm.ss")
         return formatter
     }()
 
     static func save(_ png: Data, at date: Date = Date()) -> URL? {
-        let base = "Снимок \(stamp.string(from: date))"
+        let base = "\(localized("Screenshot")) \(stamp.string(from: date))"
         var url = folder.appendingPathComponent("\(base).png")
         // Two screenshots inside one second would otherwise collide.
         var attempt = 2

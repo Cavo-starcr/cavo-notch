@@ -23,6 +23,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key><string>Cyclop</string>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array><string>en</string><string>ru</string></array>
     <key>CFBundleDisplayName</key><string>Cyclop</string>
     <key>CFBundleIdentifier</key><string>com.cyclop.app</string>
     <key>CFBundleExecutable</key><string>Cyclop</string>
@@ -49,6 +52,16 @@ PLIST
 if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
     cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
+
+# Таблицы строк кладутся прямо в бандл, а не через ресурсы SwiftPM: бандл здесь
+# собирается вручную, и .lproj рядом с исполняемым файлом — то, где их ищет сама
+# macOS. Язык она выбирает потом сама, по списку предпочитаемых у пользователя.
+echo "==> локализации"
+for lproj in "$ROOT"/Resources/*.lproj; do
+    [ -d "$lproj" ] || continue
+    cp -R "$lproj" "$APP/Contents/Resources/"
+    echo "    $(basename "$lproj")"
+done
 
 # Now Playing helper. Built here rather than by SwiftPM because it is not linked
 # into the app: it is loaded into /usr/bin/perl at runtime. See helper.m.

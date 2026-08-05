@@ -16,15 +16,24 @@ struct Snippet: Identifiable, Codable, Equatable {
         if digits >= 7, value.allSatisfy({ $0.isNumber || " +-()".contains($0) }) { return "phone.fill" }
         return "text.alignleft"
     }
+
+    /// An unnamed snippet is written without the key rather than with an empty
+    /// one: the file is documented as taking `label` or leaving it out, and
+    /// what the app writes should look like what it asks people to write.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if !label.isEmpty { try container.encode(label, forKey: .label) }
+        try container.encode(text, forKey: .text)
+    }
 }
 
 /// A hand-kept list of things worth not retyping.
 ///
-/// Read from a file and never written to. It is deliberately not fed by the
-/// clipboard: the clipboard is a queue ordered by recency, which loses exactly
-/// the entry used once a month, and anything automatic would fill this with
-/// whatever happened to pass through. What belongs here is decided by hand,
-/// and the file is where that decision lives.
+/// Deliberately not fed by the clipboard: the clipboard is a queue ordered by
+/// recency, which loses exactly the entry used once a month, and anything
+/// automatic would fill this with whatever happened to pass through. What
+/// belongs here is decided by hand — from the panel or in the file, whichever
+/// is closer at the time. Both edit the same list.
 @MainActor
 final class SnippetStore: ObservableObject {
     @Published private(set) var items: [Snippet] = []
@@ -60,6 +69,42 @@ final class SnippetStore: ObservableObject {
             items = try JSONDecoder().decode([Snippet].self, from: data)
         } catch {
             NSLog("Cyclop: snippets.json is not readable: \(error.localizedDescription)")
+        }
+    }
+
+    /// Adds one and writes the file.
+    ///
+    /// Re-reads first, because the file is also edited by hand and the copy in
+    /// memory is only as fresh as the last visit to the tab. Writing over it
+    /// blind would silently undo whatever was added in an editor meanwhile.
+    func add(label: String, text: String) {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        let snippet = Snippet(label: label.trimmingCharacters(in: .whitespacesAndNewlines), text: value)
+        reload()
+        // Identity is the name, or the value when there is no name. Two rows
+        // sharing one identity is not a duplicate to tidy up later — SwiftUI
+        // lists them by it, so the newer simply replaces the older.
+        items.removeAll { $0.id == snippet.id }
+        items.insert(snippet, at: 0)
+        persist()
+    }
+
+    func remove(_ snippet: Snippet) {
+        items.removeAll { $0.id == snippet.id }
+        persist()
+    }
+
+    /// Pretty-printed, and slashes left alone: the file is meant to be opened
+    /// and edited by hand, and `\/` in every URL would be the app making that
+    /// harder for its own convenience.
+    private func persist() {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+        do {
+            try encoder.encode(items).write(to: Self.file, options: .atomic)
+        } catch {
+            NSLog("Cyclop: cannot write snippets.json: \(error.localizedDescription)")
         }
     }
 

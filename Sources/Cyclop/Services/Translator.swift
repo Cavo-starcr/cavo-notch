@@ -82,8 +82,8 @@ final class Translator: ObservableObject {
             output = ""
             needsDownload = status == .supported
             failure = needsDownload
-                ? "Не скачан языковой пакет \(Self.name(source)) → \(Self.name(target))."
-                : "macOS не переводит эту пару языков."
+                ? localized("The %@ → %@ language pack is not installed.", Self.name(source), Self.name(target))
+                : localized("macOS does not translate this pair of languages.")
             return
         }
 
@@ -108,12 +108,13 @@ final class Translator: ObservableObject {
         pasteboard.setString(output, forType: .string)
     }
 
-    /// "Английский", "Русский" — for the column headers. Named in Russian, not
-    /// in the system locale: the rest of the panel is written in Russian, and a
-    /// Mac set to English would otherwise label the columns in English.
+    /// "Русский", "English" — for the column headers. Named in the language the
+    /// panel itself is in, not in the system's: those two can differ, and a
+    /// column headed in one language above a button worded in another reads as
+    /// a mistake.
     static func name(_ language: Locale.Language) -> String {
         guard let code = language.languageCode?.identifier,
-              let name = Locale(identifier: "ru").localizedString(forLanguageCode: code) else {
+              let name = Locale(identifier: appLanguage).localizedString(forLanguageCode: code) else {
             return language.languageCode?.identifier.uppercased() ?? "?"
         }
         return name.prefix(1).uppercased() + name.dropFirst()

@@ -141,7 +141,7 @@ final class CalendarStore: ObservableObject {
                 let link = MeetingLink.find(in: event)
                 return Meeting(
                     id: event.eventIdentifier ?? "\(event.startDate.timeIntervalSince1970)-\(event.title ?? "")",
-                    title: event.title ?? "Без названия",
+                    title: event.title ?? localized("Untitled"),
                     start: event.startDate,
                     end: event.endDate,
                     calendarColor: event.calendar.color ?? .systemBlue,

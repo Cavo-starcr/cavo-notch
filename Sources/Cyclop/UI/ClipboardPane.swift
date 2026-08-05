@@ -28,7 +28,7 @@ struct ClipboardPane: View {
     private var footer: some View {
         HStack {
             Spacer()
-            Button("Очистить") { clipboard.clear() }
+            Button("Clear") { clipboard.clear() }
                 .buttonStyle(.plain)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Theme.secondary)

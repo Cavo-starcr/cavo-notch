@@ -132,9 +132,9 @@ struct TranslatePane: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
                     if translator.needsDownload {
-                        Button("Языки перевода…") { Translator.openLanguageSettings() }
+                        Button("Translation Languages…") { Translator.openLanguageSettings() }
                     }
-                    Button("Повторить") { translator.retry() }
+                    Button("Retry") { translator.retry() }
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 10, weight: .medium))

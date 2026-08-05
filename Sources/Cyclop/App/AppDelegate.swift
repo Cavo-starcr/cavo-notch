@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let toggle = NSMenuItem(
-            title: "Открыть панель",
+            title: localized("Open Panel"),
             action: #selector(togglePanel),
             keyEquivalent: ""
         )
@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(toggle)
 
         let login = NSMenuItem(
-            title: "Запускать при входе",
+            title: localized("Launch at Login"),
             action: #selector(toggleLaunchAtLogin),
             keyEquivalent: ""
         )
@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(login)
 
         let saveShots = NSMenuItem(
-            title: "Сохранять скриншоты из буфера",
+            title: localized("Save Clipboard Screenshots"),
             action: #selector(toggleSaveClipboardImages),
             keyEquivalent: ""
         )
@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(saveShots)
 
         let openFolder = NSMenuItem(
-            title: "Показать папку скриншотов",
+            title: localized("Show Screenshots Folder"),
             action: #selector(revealScreenshots),
             keyEquivalent: ""
         )
@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(openFolder)
 
         let openSnippets = NSMenuItem(
-            title: "Показать файл заготовок",
+            title: localized("Show Snippets File"),
             action: #selector(revealSnippets),
             keyEquivalent: ""
         )
@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(openSnippets)
 
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Выйти", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: localized("Quit"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
