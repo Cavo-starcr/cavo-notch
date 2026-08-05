@@ -111,9 +111,52 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
+        // A copy made on the phone arrives in two parts: macOS puts the type on
+        // the pasteboard the moment the phone announces it, and the picture
+        // itself is still coming over the air. So the counter can move while
+        // there are no bytes to read yet — and reading once would drop the
+        // screenshot for good, because the counter has already been marked as
+        // seen. Wait for it instead.
+        if pasteboard.availableType(from: [.png, .tiff]) != nil {
+            awaitImage(at: pasteboard.changeCount, attempt: 0)
+            return
+        }
+
         guard let string = pasteboard.string(forType: .string),
               !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         record(ClipItem(payload: .text(string), date: Date()))
+    }
+
+    /// Checks back until the promised picture has actually arrived.
+    ///
+    /// Gives up after a few seconds, and stops the moment the pasteboard moves
+    /// on: a copy made in the meantime is the newer intention, and finishing a
+    /// transfer the user has already replaced would put the wrong thing on the
+    /// shelf.
+    private func awaitImage(at changeCount: Int, attempt: Int) {
+        // Out of patience. Something declared a picture and never produced one,
+        // so fall back to what else was on the pasteboard — otherwise a copy
+        // that merely offered an image alongside its text would go unrecorded.
+        guard attempt < 12 else {
+            let pasteboard = NSPasteboard.general
+            guard pasteboard.changeCount == changeCount,
+                  let string = pasteboard.string(forType: .string),
+                  !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            record(ClipItem(payload: .text(string), date: Date()))
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let pasteboard = NSPasteboard.general
+                guard pasteboard.changeCount == changeCount else { return }
+                if let png = self.pngFromPasteboard(pasteboard) {
+                    self.onImage?(png)
+                    return
+                }
+                self.awaitImage(at: changeCount, attempt: attempt + 1)
+            }
+        }
     }
 
     /// Screenshots land as PNG; other apps often offer only TIFF.
