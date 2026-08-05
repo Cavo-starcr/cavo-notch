@@ -108,13 +108,26 @@ struct NotesPane: View {
                 // that back so the first character lines up with the padding.
                 .padding(.leading, -5)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                // A fresh identity per note: switching must not carry the old
-                // caret and scroll position into the new text.
-                .id(notes.selected)
-                // Asked here, where the field exists — a focus request aimed
-                // at a view outside the hierarchy is dropped, and identity
-                // changes remount this view (see SnippetsPane for the story).
-                .onAppear { focused = wantsKeyboard }
+                // One editor for all notes, deliberately NOT remounted per
+                // note. A remount (`.id(selected)`) tears the focused view
+                // down, and SwiftUI's cleanup for "the focused view
+                // disappeared" clears the FocusState at a moment of its own
+                // choosing — racing, and regularly beating, every way of
+                // re-requesting focus: a plain set, a deferred set, even
+                // `defaultFocus`. All three were tried; the new note kept
+                // arriving without a caret. With one long-lived editor the
+                // text swaps inside a view that never dies, so there is no
+                // cleanup and nothing to race. AppKit clamps the caret to the
+                // new text's length — for a fresh note that is position zero,
+                // exactly where it belongs. The cost is a shared undo stack:
+                // ⌘Z pressed right after switching notes can pull the other
+                // note's text in — livable for jottings this short-lived.
+                //
+                // Asked in onAppear because on arrival at the tab the request
+                // must come from a view that exists (see SnippetsPane).
+                .onAppear {
+                    DispatchQueue.main.async { focused = wantsKeyboard }
+                }
                 .onKeyPress(.escape) {
                     // Esc hands the keyboard back, and only that. It never
                     // clears: this pane holds the one kind of text that cannot
