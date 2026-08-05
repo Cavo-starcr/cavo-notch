@@ -4,6 +4,8 @@
 невидимо, по наведению мыши разворачивается вниз в панель с плеером, полкой для
 файлов, историей буфера обмена и ближайшими встречами.
 
+[![build](https://github.com/akalikbergenov/cyclop/actions/workflows/build.yml/badge.svg)](https://github.com/akalikbergenov/cyclop/actions/workflows/build.yml)
+
 ![Панель Cyclop](docs/panel.png)
 
 **[Скачать последнюю версию](https://github.com/akalikbergenov/cyclop/releases/latest)** —
