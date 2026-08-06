@@ -81,6 +81,8 @@ final class NotchViewModel: ObservableObject {
     let translator: Translator
     let snippets: SnippetStore
     let notes: NoteStore
+    /// Shared by every pane that shows something worth not showing.
+    let privacy = PrivacyMode()
 
     private var cancellables = Set<AnyCancellable>()
 

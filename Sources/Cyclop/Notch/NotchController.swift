@@ -262,9 +262,28 @@ final class NotchController {
         }
     }
 
+    /// Menu-bar switch for the privacy mode. The panel is usually folded when
+    /// it is flipped, so the live object is what gets set; it writes the
+    /// default itself.
+    func setPrivacy(_ on: Bool) {
+        if let vm = viewModel {
+            vm.privacy.isOn = on
+        } else {
+            UserDefaults.standard.set(on, forKey: PrivacyMode.key)
+        }
+    }
+
+    var privacyIsOn: Bool {
+        viewModel?.privacy.isOn ?? UserDefaults.standard.bool(forKey: PrivacyMode.key)
+    }
+
     /// The visual half of closing, one pass after the keyboard was let go.
     private func collapse() {
         guard let vm = viewModel, vm.isOpen else { return }
+        // Whatever was uncovered by hand goes back under cover with the panel.
+        // The next hover is the one nobody planned, and it must not open onto
+        // a row somebody revealed ten minutes ago.
+        vm.privacy.coverEverything()
         withAnimation(Theme.openAnimation) { vm.isOpen = false }
         vm.media.setActive(false)
         vm.calendar.setActive(false)

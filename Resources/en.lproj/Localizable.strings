@@ -79,3 +79,9 @@
    the parts in its own order. */
 "Screenshot" = "Screenshot";
 "yyyy-MM-dd 'at' HH.mm.ss" = "yyyy-MM-dd 'at' HH.mm.ss";
+
+/* Privacy mode: the panel covers what it holds with a field of dots. */
+"Hide Contents" = "Hide Contents";
+"Hidden" = "Hidden";
+"Show" = "Show";
+"Hide" = "Hide";

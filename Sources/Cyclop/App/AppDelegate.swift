@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var controller: NotchController?
     private var statusItem: NSStatusItem?
     private var clearVaultItem: NSMenuItem?
+    private var privacyItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller = NotchController()
@@ -51,6 +52,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         login.target = self
         login.state = launchAtLoginEnabled ? .on : .off
         menu.addItem(login)
+
+        // Sits next to the panel switch rather than among the folder items: it
+        // changes what the panel shows, and it is the one people look for in a
+        // hurry, with the camera already running.
+        let privacy = NSMenuItem(
+            title: localized("Hide Contents"),
+            action: #selector(togglePrivacy),
+            keyEquivalent: ""
+        )
+        privacy.target = self
+        privacy.state = (controller?.privacyIsOn ?? false) ? .on : .off
+        menu.addItem(privacy)
+        privacyItem = privacy
 
         let saveShots = NSMenuItem(
             title: localized("Save Clipboard Screenshots"),
@@ -126,6 +140,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func togglePrivacy(_ sender: NSMenuItem) {
+        let next = !(controller?.privacyIsOn ?? false)
+        controller?.setPrivacy(next)
+        sender.state = next ? .on : .off
     }
 
     @objc private func toggleSaveClipboardImages(_ sender: NSMenuItem) {
