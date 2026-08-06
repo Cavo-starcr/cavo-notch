@@ -34,6 +34,10 @@ final class ShelfStore: ObservableObject {
     private let limit = 60
 
     func load() {
+        // Card ids are minted per instance, so a reload orphans any selection:
+        // the ids it holds now name nothing. Kept, they showed as a phantom
+        // "Selected: N" in the footer with no card marked (#10).
+        selection.removeAll()
         let paths = UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []
         items = paths
             .map(URL.init(fileURLWithPath:))
@@ -131,7 +135,10 @@ final class ShelfStore: ObservableObject {
         if let type = UTType(filenameExtension: item.url.pathExtension),
            type.conforms(to: .image),
            let data = try? Data(contentsOf: item.url) {
-            pasteboard.setData(data, forType: type == .png ? .png : .tiff)
+            // Declared as what the bytes are, not renamed to TIFF: consumers
+            // that trust the declared type would save a "TIFF" with JPEG
+            // inside (#9). The UTI is already the pasteboard type identifier.
+            pasteboard.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
         }
     }
 
