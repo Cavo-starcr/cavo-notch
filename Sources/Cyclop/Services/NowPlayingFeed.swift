@@ -12,6 +12,9 @@ final class NowPlayingFeed {
         var duration: TimeInterval = 0
         var elapsed: TimeInterval = 0
         var rate: Double = 0
+        /// When `elapsed` was read. MediaRemote reports a reading, not a
+        /// running clock — without this the reading cannot be aged.
+        var takenAt: Date?
         /// Only present on the update where the track changed.
         var artwork: Data?
         /// Name of the app owning the session, resolved from its pid.
@@ -156,6 +159,9 @@ final class NowPlayingFeed {
         snapshot.duration = object["duration"] as? Double ?? 0
         snapshot.elapsed = object["elapsed"] as? Double ?? 0
         snapshot.rate = object["rate"] as? Double ?? 0
+        if let seconds = object["timestamp"] as? Double, seconds > 0 {
+            snapshot.takenAt = Date(timeIntervalSince1970: seconds)
+        }
         if let base64 = object["artwork"] as? String {
             snapshot.artwork = Data(base64Encoded: base64)
         }

@@ -46,6 +46,11 @@ static void emit(NSDictionary *payload) {
 
 /// Reads the current record and prints it. Artwork is only included when the
 /// track changed — it is the bulk of the payload and never changes mid-track.
+///
+/// `elapsed` goes out with the moment it was taken. The daemon does not keep
+/// that field running: it is a reading from the last change of state, and a
+/// session that has been playing for three minutes still reports the second it
+/// started at. What advances is the clock beside it, so both have to travel.
 static void publish(void) {
     if (!sGetInfo || !sGetIsPlaying) return;
     // Cached rather than nested a call deeper: it only labels the source.
@@ -64,6 +69,11 @@ static void publish(void) {
             out[@"elapsed"] = info[@"kMRMediaRemoteNowPlayingInfoElapsedTime"] ?: @0;
             out[@"rate"] = info[@"kMRMediaRemoteNowPlayingInfoPlaybackRate"] ?: @0;
             out[@"pid"] = @(sOwnerPID);
+
+            id stamp = info[@"kMRMediaRemoteNowPlayingInfoTimestamp"];
+            out[@"timestamp"] = [stamp isKindOfClass:NSDate.class]
+                ? @([(NSDate *)stamp timeIntervalSince1970])
+                : @0;
 
             NSString *artworkID = info[@"kMRMediaRemoteNowPlayingInfoArtworkIdentifier"] ?: title;
             NSData *artwork = info[@"kMRMediaRemoteNowPlayingInfoArtworkData"];
