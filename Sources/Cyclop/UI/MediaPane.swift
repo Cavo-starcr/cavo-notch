@@ -65,6 +65,14 @@ struct MediaPane: View {
         }
         .frame(width: 118, height: 118)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        // The same shape again, this time for the pointer. `clipShape` hides
+        // the overflow but does not stop it being touched, and `.fill` on a
+        // cover that is not square overflows a long way: a 16:9 thumbnail —
+        // what a video in a browser tab publishes — comes out 211 pt wide in
+        // this 118 pt box, so 46 pt of invisible picture hangs over each side.
+        // The left side is the tab rail, and the four icons behind that
+        // overhang stopped answering the pointer (#22).
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(Theme.hairline, lineWidth: 1)
