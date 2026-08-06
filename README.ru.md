@@ -7,6 +7,7 @@
 файлов, историей буфера обмена и ближайшими встречами.
 
 [![build](https://github.com/akalikbergenov/cyclop/actions/workflows/build.yml/badge.svg)](https://github.com/akalikbergenov/cyclop/actions/workflows/build.yml)
+[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-%E2%98%95-FFDD00?style=flat-square&labelColor=000000)](https://buymeacoffee.com/akalikbergenov)
 
 ![Панель Cyclop](docs/panel.png)
 
@@ -440,6 +441,23 @@ Sources/Cyclop
 Sources/CyclopMediaHelper
 └── helper.m                   dylib для /usr/bin/perl: MediaRemote -> JSON
 ```
+
+## Спасибо
+
+Приложение бесплатное, без подписок, рекламы и сбора данных — и таким
+останется. Если оно вам пригодилось и хочется поддержать:
+
+**[☕ Buy Me a Coffee](https://buymeacoffee.com/akalikbergenov)**
+
+Отдельное спасибо тем, кто пришёл в репозиторий в первые же дни и сделал
+приложение лучше: [@DontTrustMexD](https://github.com/DontTrustMexD),
+[@a58becde](https://github.com/a58becde),
+[@ispy4you](https://github.com/ispy4you),
+[@iFuzYs](https://github.com/iFuzYs),
+[@zhd-dm](https://github.com/zhd-dm),
+[@komekovars](https://github.com/komekovars),
+[@superkai-sdk1](https://github.com/superkai-sdk1),
+[@Ariet2003](https://github.com/Ariet2003).
 
 ## Лицензия
 

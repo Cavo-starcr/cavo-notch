@@ -7,6 +7,7 @@ rest, and on hover it unfolds downwards into a panel with a player, a shelf for
 files, clipboard history and your next meetings.
 
 [![build](https://github.com/akalikbergenov/cyclop/actions/workflows/build.yml/badge.svg)](https://github.com/akalikbergenov/cyclop/actions/workflows/build.yml)
+[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-%E2%98%95-FFDD00?style=flat-square&labelColor=000000)](https://buymeacoffee.com/akalikbergenov)
 
 ![The Cyclop panel](docs/panel.png)
 
@@ -454,6 +455,23 @@ Sources/Cyclop
 Sources/CyclopMediaHelper
 └── helper.m                   dylib for /usr/bin/perl: MediaRemote -> JSON
 ```
+
+## Thanks
+
+The app is free — no subscriptions, no ads, no data collection — and will stay
+that way. If it turned out useful and you feel like supporting it:
+
+**[☕ Buy Me a Coffee](https://buymeacoffee.com/akalikbergenov)**
+
+Special thanks to everyone who showed up in the first days and made the app
+better: [@DontTrustMexD](https://github.com/DontTrustMexD),
+[@a58becde](https://github.com/a58becde),
+[@ispy4you](https://github.com/ispy4you),
+[@iFuzYs](https://github.com/iFuzYs),
+[@zhd-dm](https://github.com/zhd-dm),
+[@komekovars](https://github.com/komekovars),
+[@superkai-sdk1](https://github.com/superkai-sdk1),
+[@Ariet2003](https://github.com/Ariet2003).
 
 ## Licence
 
