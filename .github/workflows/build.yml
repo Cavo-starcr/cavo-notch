@@ -37,6 +37,9 @@ jobs:
           test -f "$APP/Contents/Resources/ru.lproj/Localizable.strings"
           INSIDE="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")"
           test "$INSIDE" = "$VERSION" || { echo "версия в бандле $INSIDE, в Scripts/version $VERSION"; exit 1; }
+          # Раньше эта проверка отсутствовала, и неподписанный бандл проходил CI
+          # незамеченным: шаг смотрел на наличие файлов, а не на подпись (#19).
+          codesign --verify --strict "$APP"
 
       - name: Ключи перевода совпадают с кодом
         # Строка, для которой нет ключа, не ломает сборку — она просто

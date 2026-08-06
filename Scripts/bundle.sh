@@ -73,7 +73,25 @@ clang -dynamiclib -fobjc-arc -O2 \
     "$ROOT/Sources/CyclopMediaHelper/helper.m"
 
 echo "==> ad-hoc signing"
-codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || \
-    echo "    (codesign failed — the app still runs, but TCC prompts may repeat)"
+# Расширенные атрибуты снимаются первыми. iCloud вешает на файлы
+# com.apple.FinderInfo, а codesign отказывается подписывать что-либо с ним —
+# «resource fork, Finder information, or similar detritus not allowed». Папка
+# «Рабочий стол» синхронизируется с iCloud у многих по умолчанию, так что клон
+# репозитория там перестает подписываться, стоило его туда перенести.
+xattr -cr "$APP"
+
+# Ошибка не глушится и не понижается до предупреждения. Раньше отказ печатал
+# мягкую строку и возвращал ноль: скрипт доходил до «done», а в build лежал
+# бандл, про который codesign говорит «code object is not signed at all».
+# Заметить это можно было только по возвращающимся запросам TCC — то есть у
+# того, кто уже поставил приложение.
+codesign --force --deep --sign - "$APP" || {
+    echo "!!! codesign не смог подписать бандл — см. вывод выше" >&2
+    exit 1
+}
+codesign --verify --strict "$APP" || {
+    echo "!!! подпись не прошла проверку" >&2
+    exit 1
+}
 
 echo "==> done: $APP"
