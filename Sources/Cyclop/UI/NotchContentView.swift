@@ -150,13 +150,13 @@ struct NotchContentView: View {
         case .clipboard:
             ClipboardPane(clipboard: vm.clipboard, privacy: vm.privacy)
         case .calendar:
-            CalendarPane(calendar: vm.calendar)
+            CalendarPane(calendar: vm.calendar, privacy: vm.privacy)
         case .snippets:
-            SnippetsPane(snippets: vm.snippets, wantsKeyboard: $vm.wantsKeyboard)
+            SnippetsPane(snippets: vm.snippets, privacy: vm.privacy, wantsKeyboard: $vm.wantsKeyboard)
         case .translate:
             TranslatePane(translator: vm.translator, wantsKeyboard: $vm.wantsKeyboard)
         case .notes:
-            NotesPane(notes: vm.notes, wantsKeyboard: $vm.wantsKeyboard)
+            NotesPane(notes: vm.notes, privacy: vm.privacy, wantsKeyboard: $vm.wantsKeyboard)
         }
     }
 }

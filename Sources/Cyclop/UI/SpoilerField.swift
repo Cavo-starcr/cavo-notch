@@ -37,7 +37,12 @@ struct SpoilerField: View {
 
     private func draw(in context: GraphicsContext, size: CGSize, time: TimeInterval) {
         guard size.width > 1, size.height > 1 else { return }
-        let count = min(Int(size.width * size.height * density), 4000)
+        // The ceiling is what a whole covered pane runs into, not a row: at this
+        // density a row asks for a few hundred dots and the notes tab for tens
+        // of thousands. Capped, a large area thins out into a starfield instead
+        // of dust, so the ceiling is set by what still draws in a frame rather
+        // than by what a row needs.
+        let count = min(Int(size.width * size.height * density), 12000)
         guard count > 0 else { return }
 
         // Seeded from a constant, so every frame lays the dots in the same

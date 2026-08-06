@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SnippetsPane: View {
     @ObservedObject var snippets: SnippetStore
+    @ObservedObject var privacy: PrivacyMode
     /// Whether the panel holds the keyboard, so the fields can follow it.
     @Binding var wantsKeyboard: Bool
 
@@ -200,7 +201,7 @@ struct SnippetsPane: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 3) {
                     ForEach(snippets.filtered) { item in
-                        SnippetRow(item: item, snippets: snippets)
+                        SnippetRow(item: item, snippets: snippets, privacy: privacy)
                     }
                 }
                 .padding(.bottom, 2)
@@ -213,8 +214,11 @@ struct SnippetsPane: View {
 private struct SnippetRow: View {
     let item: Snippet
     @ObservedObject var snippets: SnippetStore
+    @ObservedObject var privacy: PrivacyMode
     @State private var hovering = false
     @State private var justCopied = false
+
+    private var hidden: Bool { privacy.hides("snippet.\(item.id)") }
 
     var body: some View {
         HStack(spacing: 9) {
@@ -222,6 +226,11 @@ private struct SnippetRow: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(justCopied ? Color.green : Theme.tertiary)
                 .frame(width: 14)
+            // The name stays legible while the value is covered: the row has to
+            // say what it copies, or a list of covered rows is a list of
+            // identical rows. An unnamed snippet shows its value as its name,
+            // so covering the value covers the whole row — which is right,
+            // since there is nothing else in it.
             if !item.label.isEmpty {
                 Text(item.label)
                     .font(.system(size: 11, weight: .medium))
@@ -229,15 +238,19 @@ private struct SnippetRow: View {
                     .lineLimit(1)
                     .layoutPriority(1)
             }
-            Text(item.text.replacingOccurrences(of: "\n", with: " "))
-                .font(.system(size: 11))
-                .foregroundStyle(item.label.isEmpty ? .white : Theme.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            SpoilerText(
+                text: item.text.replacingOccurrences(of: "\n", with: " "),
+                hidden: hidden,
+                color: item.label.isEmpty ? .white : Theme.secondary,
+                seed: UInt64(bitPattern: Int64(item.id.hashValue))
+            )
             Spacer(minLength: 6)
             // Only under the pointer: a row of crosses would compete with the
             // snippets themselves for a glance.
             if hovering {
+                if privacy.isOn {
+                    RevealEye(hidden: hidden) { privacy.toggle("snippet.\(item.id)") }
+                }
                 Button { snippets.remove(item) } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .semibold))

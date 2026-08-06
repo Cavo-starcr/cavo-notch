@@ -3,15 +3,29 @@ import SwiftUI
 /// Scratch notes: the list on the left, the note itself on the right.
 struct NotesPane: View {
     @ObservedObject var notes: NoteStore
+    @ObservedObject var privacy: PrivacyMode
     /// Whether the panel holds the keyboard, so the editor can follow it.
     @Binding var wantsKeyboard: Bool
 
     @FocusState private var focused: Bool
 
+    private var hidden: Bool { privacy.hides("notes") }
+
     var body: some View {
-        HStack(spacing: 10) {
-            list
-            editor
+        Group {
+            // The whole tab at once, unlike the row-by-row tabs. What is on
+            // this one is a live editor: covering a field character by
+            // character would leave something that cannot be typed into and
+            // looks like it can, and the list beside it is made of the notes'
+            // own first lines — every part of the tab is the text itself.
+            if hidden {
+                cover
+            } else {
+                HStack(spacing: 10) {
+                    list
+                    editor
+                }
+            }
         }
         .padding(.top, 2)
         // Arriving means arriving to type. With nothing to select, an empty
@@ -25,6 +39,23 @@ struct NotesPane: View {
             }
         }
         .onChange(of: wantsKeyboard) { _, wants in focused = wants }
+    }
+
+    private var cover: some View {
+        ZStack {
+            SpoilerField(seed: 0x9E3779B97F4A7C05)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Button { privacy.reveal("notes") } label: {
+                Image(systemName: "eye")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(Color.black.opacity(0.65)))
+            }
+            .buttonStyle(.plain)
+            .help(localized("Show"))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - List

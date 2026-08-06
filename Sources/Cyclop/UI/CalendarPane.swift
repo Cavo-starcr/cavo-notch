@@ -2,6 +2,13 @@ import SwiftUI
 
 struct CalendarPane: View {
     @ObservedObject var calendar: CalendarStore
+    @ObservedObject var privacy: PrivacyMode
+
+    /// One cover for the whole tab rather than one per meeting: the agenda is a
+    /// dense list of short rows, and a column of eyes in it would be louder
+    /// than the meetings. Times stay legible either way — a time says nothing
+    /// on its own, and the countdown in the panel's header shows one anyway.
+    private var hidden: Bool { privacy.hides("calendar") }
 
     var body: some View {
         switch calendar.access {
@@ -27,10 +34,16 @@ struct CalendarPane: View {
                     Circle()
                         .fill(Color(next.calendarColor))
                         .frame(width: 7, height: 7)
-                    Text(next.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
+                    SpoilerText(
+                        text: next.title,
+                        hidden: hidden,
+                        font: .system(size: 16, weight: .semibold),
+                        height: 18,
+                        seed: UInt64(bitPattern: Int64(next.id.hashValue))
+                    )
+                    if privacy.isOn {
+                        RevealEye(hidden: hidden) { privacy.toggle("calendar") }
+                    }
                 }
                 Text(subtitle(for: next))
                     .font(.system(size: 11.5))
@@ -81,10 +94,14 @@ struct CalendarPane: View {
                         .foregroundStyle(Theme.secondary)
                         .frame(width: 34, alignment: .leading)
                         .opacity(Foundation.Calendar.current.isDateInToday(meeting.start) ? 1 : 0.6)
-                    Text(meeting.title)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(Theme.tertiary)
-                        .lineLimit(1)
+                    SpoilerText(
+                        text: meeting.title,
+                        hidden: hidden,
+                        font: .system(size: 10.5),
+                        color: Theme.tertiary,
+                        height: 11,
+                        seed: UInt64(bitPattern: Int64(meeting.id.hashValue))
+                    )
                 }
             }
             if calendar.upcoming.isEmpty {
