@@ -262,20 +262,10 @@ final class NotchController {
         }
     }
 
-    /// Menu-bar switch for the privacy mode. The panel is usually folded when
-    /// it is flipped, so the live object is what gets set; it writes the
-    /// default itself.
-    func setPrivacy(_ on: Bool) {
-        if let vm = viewModel {
-            vm.privacy.isOn = on
-        } else {
-            UserDefaults.standard.set(on, forKey: PrivacyMode.key)
-        }
-    }
-
-    var privacyIsOn: Bool {
-        viewModel?.privacy.isOn ?? UserDefaults.standard.bool(forKey: PrivacyMode.key)
-    }
+    /// What the menu bar switches. Handed out rather than wrapped: the menu
+    /// reads four sections and writes them one at a time, and a controller
+    /// method per section would be four methods that only forward.
+    var privacy: PrivacyMode? { viewModel?.privacy }
 
     /// The visual half of closing, one pass after the keyboard was let go.
     private func collapse() {

@@ -12,7 +12,7 @@ struct NotesPane: View {
     /// Per note, like the rows in the other tabs. A curtain over the whole tab
     /// would also cover the only thing here that is not the text — which note
     /// is which — and leave no way to pick one without uncovering it.
-    private func hidden(_ id: Note.ID) -> Bool { privacy.hides("note.\(id)") }
+    private func hidden(_ id: Note.ID) -> Bool { privacy.hides(.notes, "note.\(id)") }
 
     private var selectedHidden: Bool {
         guard let id = notes.selected else { return false }
@@ -100,7 +100,7 @@ struct NotesPane: View {
                             note: note,
                             isSelected: notes.selected == note.id,
                             hidden: hidden(note.id),
-                            showsEye: privacy.isOn,
+                            showsEye: privacy.covers(.notes),
                             toggleReveal: { privacy.toggle("note.\(note.id)") },
                             select: {
                                 notes.selected = note.id

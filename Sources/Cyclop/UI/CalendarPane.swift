@@ -8,7 +8,7 @@ struct CalendarPane: View {
     /// dense list of short rows, and a column of eyes in it would be louder
     /// than the meetings. Times stay legible either way — a time says nothing
     /// on its own, and the countdown in the panel's header shows one anyway.
-    private var hidden: Bool { privacy.hides("calendar") }
+    private var hidden: Bool { privacy.hides(.calendar, "calendar") }
 
     var body: some View {
         switch calendar.access {
@@ -41,7 +41,7 @@ struct CalendarPane: View {
                         height: 18,
                         seed: UInt64(bitPattern: Int64(next.id.hashValue))
                     )
-                    if privacy.isOn {
+                    if privacy.covers(.calendar) {
                         RevealEye(hidden: hidden) { privacy.toggle("calendar") }
                     }
                 }

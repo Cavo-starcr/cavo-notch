@@ -45,7 +45,7 @@ private struct ClipRow: View {
     @State private var hovering = false
     @State private var justCopied = false
 
-    private var hidden: Bool { privacy.hides(item.id.uuidString) }
+    private var hidden: Bool { privacy.hides(.clipboard, item.id.uuidString) }
 
     var body: some View {
         HStack(spacing: 9) {
@@ -60,7 +60,7 @@ private struct ClipRow: View {
             )
             Spacer(minLength: 6)
             if hovering {
-                if privacy.isOn {
+                if privacy.covers(.clipboard) {
                     RevealEye(hidden: hidden) { privacy.toggle(item.id.uuidString) }
                 }
                 Button { clipboard.remove(item) } label: {

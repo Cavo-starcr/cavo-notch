@@ -218,7 +218,7 @@ private struct SnippetRow: View {
     @State private var hovering = false
     @State private var justCopied = false
 
-    private var hidden: Bool { privacy.hides("snippet.\(item.id)") }
+    private var hidden: Bool { privacy.hides(.snippets, "snippet.\(item.id)") }
 
     var body: some View {
         HStack(spacing: 9) {
@@ -248,7 +248,7 @@ private struct SnippetRow: View {
             // Only under the pointer: a row of crosses would compete with the
             // snippets themselves for a glance.
             if hovering {
-                if privacy.isOn {
+                if privacy.covers(.snippets) {
                     RevealEye(hidden: hidden) { privacy.toggle("snippet.\(item.id)") }
                 }
                 Button { snippets.remove(item) } label: {

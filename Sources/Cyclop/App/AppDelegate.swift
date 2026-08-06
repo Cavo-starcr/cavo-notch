@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var clearVaultItem: NSMenuItem?
     private var privacyItem: NSMenuItem?
+    private var privacyAllItem: NSMenuItem?
+    private var privacySectionItems: [PrivacyMode.Section: NSMenuItem] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller = NotchController()
@@ -56,13 +58,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Sits next to the panel switch rather than among the folder items: it
         // changes what the panel shows, and it is the one people look for in a
         // hurry, with the camera already running.
-        let privacy = NSMenuItem(
-            title: localized("Hide Contents"),
-            action: #selector(togglePrivacy),
-            keyEquivalent: ""
-        )
-        privacy.target = self
-        privacy.state = (controller?.privacyIsOn ?? false) ? .on : .off
+        //
+        // A submenu rather than a plain switch, because the tabs hold different
+        // things and not everyone wants all of them covered. "All" comes first
+        // and is what most people will ever touch; the sections below it are
+        // for the case where that is too much.
+        let privacy = NSMenuItem(title: localized("Hide Contents"), action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+
+        let all = NSMenuItem(title: localized("All"), action: #selector(togglePrivacyAll), keyEquivalent: "")
+        all.target = self
+        submenu.addItem(all)
+        privacyAllItem = all
+        submenu.addItem(.separator())
+
+        for section in PrivacyMode.Section.allCases {
+            let item = NSMenuItem(
+                title: section.title,
+                action: #selector(togglePrivacySection(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = section.rawValue
+            submenu.addItem(item)
+            privacySectionItems[section] = item
+        }
+
+        privacy.submenu = submenu
         menu.addItem(privacy)
         privacyItem = privacy
 
@@ -120,6 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The size is measured when the menu opens, not kept fresh in between: a
     /// folder nobody is looking at deserves no bookkeeping.
     func menuWillOpen(_ menu: NSMenu) {
+        refreshPrivacyItems()
         guard let clearVaultItem else { return }
         let usage = ScreenshotVault.usage()
         if usage.files == 0 {
@@ -142,10 +166,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.terminate(nil)
     }
 
-    @objc private func togglePrivacy(_ sender: NSMenuItem) {
-        let next = !(controller?.privacyIsOn ?? false)
-        controller?.setPrivacy(next)
-        sender.state = next ? .on : .off
+    @objc private func togglePrivacyAll(_ sender: NSMenuItem) {
+        guard let privacy = controller?.privacy else { return }
+        // Anything short of everything means "turn the rest on too"; only a
+        // full house turns them all off. One press, and no state where the
+        // item says All while half the sections are open.
+        privacy.setCoveringAll(!privacy.coversAll)
+        refreshPrivacyItems()
+    }
+
+    @objc private func togglePrivacySection(_ sender: NSMenuItem) {
+        guard let privacy = controller?.privacy,
+              let raw = sender.representedObject as? String,
+              let section = PrivacyMode.Section(rawValue: raw) else { return }
+        privacy.setCovering(section, !privacy.covers(section))
+        refreshPrivacyItems()
+    }
+
+    /// The parent item carries the summary: a tick when every section is
+    /// covered, a dash when some are. Without it the state is a submenu away,
+    /// and this is the one switch worth reading at a glance.
+    private func refreshPrivacyItems() {
+        guard let privacy = controller?.privacy else { return }
+        privacyItem?.state = privacy.coversAll ? .on : (privacy.coversAny ? .mixed : .off)
+        privacyAllItem?.state = privacy.coversAll ? .on : .off
+        for (section, item) in privacySectionItems {
+            item.state = privacy.covers(section) ? .on : .off
+        }
     }
 
     @objc private func toggleSaveClipboardImages(_ sender: NSMenuItem) {
