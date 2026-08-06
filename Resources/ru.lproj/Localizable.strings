@@ -37,6 +37,7 @@
 "Text" = "Текст";
 "Delete" = "Удалить";
 "Nothing here yet — add with +" = "Пока пусто — добавь через +";
+"snippets.json is broken — click to open; nothing is overwritten" = "snippets.json не читается — нажми, чтобы открыть; поверх ничего не пишется";
 
 /* Заметки */
 "Notes" = "Заметки";
