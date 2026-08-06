@@ -257,6 +257,16 @@ it is not meant to be edited by hand, and it is plain text. The right column is
 not decoration: the six icons on the left already fill the panel's height, and a
 seventh would not fit.
 
+**Hiding contents.** The "Hide Contents" menu bar item covers what the tabs
+show with a field of twinkling dots — for a screen-shared call, a stream, or a
+café. Enabled as a whole or per section — clipboard, snippets, calendar, notes —
+and off by default. A hidden row is not drawn at all: this is no blur, there is
+nothing in the frame to recover, and the field covers the whole row rather than
+tracing the glyphs — a silhouette would give away the length. The eye on a row
+uncovers it for a while, folding the panel covers everything again, and copying
+works over the cover — the hidden can be used without being shown. Proposed and
+written by the community (#16, PR #17).
+
 **Languages.** Russian and English; macOS picks by the user's preferred language
 list. The keys in the tables are the English text, so a string without a
 translation stays an English phrase instead of turning into an identifier — which
@@ -436,6 +446,7 @@ Sources/Cyclop
 │   ├── ScreenshotVault.swift  clipboard screenshots onto disk
 │   ├── SnippetStore.swift     snippets: reading and writing snippets.json
 │   ├── NoteStore.swift        scratch notes: notes.json
+│   ├── PrivacyMode.swift      hiding contents: sections and reveals
 │   ├── Translator.swift       Translation.framework, direction by script
 │   └── CalendarStore.swift    EventKit: next meetings and the call link
 └── UI/                        NotchShape, tab panes, theme
