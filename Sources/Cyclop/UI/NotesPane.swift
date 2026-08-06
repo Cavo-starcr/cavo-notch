@@ -251,6 +251,12 @@ private struct NoteRow: View {
                 Text(Self.clock.string(from: note.edited))
                     .font(.system(size: 10, weight: .medium).monospacedDigit())
                     .foregroundStyle(isSelected ? Theme.secondary : Theme.tertiary)
+                    // The dust beside it asks for every point of the row and
+                    // asks with a higher layout priority, so without this the
+                    // time is squeezed to nothing — which is the whole reason
+                    // it is there. Verified by looking: the covered rows came
+                    // out with a blank margin where the time should have been.
+                    .fixedSize()
                 SpoilerText(
                     text: preview,
                     hidden: true,
