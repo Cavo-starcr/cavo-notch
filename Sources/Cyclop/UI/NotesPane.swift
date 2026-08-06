@@ -31,6 +31,11 @@ struct NotesPane: View {
         .onAppear {
             if notes.notes.isEmpty {
                 notes.add()
+                // Same deal as the + button below: a note born under the caret
+                // is being written by the one person looking at it. Covered,
+                // it would arrive with the editor disabled — a focused field
+                // that eats no keys, on the tab that exists to be typed into.
+                if let id = notes.selected { privacy.reveal("note.\(id)") }
             } else if notes.selected == nil {
                 notes.selected = notes.notes.first?.id
             }

@@ -13,8 +13,11 @@ import SwiftUI
 /// breaks of what is covered; for a password the length is half the answer.
 struct SpoilerField: View {
     /// Dots per square point. Dense enough to read as a solid dusting at the
-    /// sizes the panel uses, which are small.
-    var density: Double = 0.55
+    /// sizes the panel uses, which are small. Turned down from the first cut
+    /// (0.55): measured on the full notes editor, the field cost 35 % CPU at
+    /// 30 fps — a fan-spinner on exactly the streams it exists for. At 0.4 and
+    /// 20 fps the dust still reads as dust and the bill drops by two thirds.
+    var density: Double = 0.4
     /// How many alpha steps the dots are sorted into. Every dot is its own
     /// ellipse, but they are filled a step at a time — a few fills per frame
     /// instead of a thousand, and the eye cannot tell the difference.
@@ -27,7 +30,7 @@ struct SpoilerField: View {
         // The dots are animated, so this view is alive only while the panel is
         // open — a folded panel has no content view at all, and the app's idle
         // cost stays where it was.
-        TimelineView(.animation(minimumInterval: 1.0 / 30)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 20)) { timeline in
             Canvas(opaque: false, rendersAsynchronously: false) { context, size in
                 draw(in: context, size: size, time: timeline.date.timeIntervalSinceReferenceDate)
             }
@@ -42,7 +45,7 @@ struct SpoilerField: View {
         // of thousands. Capped, a large area thins out into a starfield instead
         // of dust, so the ceiling is set by what still draws in a frame rather
         // than by what a row needs.
-        let count = min(Int(size.width * size.height * density), 12000)
+        let count = min(Int(size.width * size.height * density), 7000)
         guard count > 0 else { return }
 
         // Seeded from a constant, so every frame lays the dots in the same
