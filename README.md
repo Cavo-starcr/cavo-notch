@@ -88,6 +88,10 @@ Developer ID and notarisation.
 Updating works the same way: open the new image and replace the app. Allowing it
 again is not necessary. The version is the first line of the menu bar menu.
 
+Releases come often, and a star does not announce them — it is a bookmark, not a
+subscription. To hear about updates: the **Watch** button at the top right →
+**Custom** → tick **Releases**. Only releases will arrive, no issues or pushes.
+
 ### Building the image yourself
 
 ```bash
