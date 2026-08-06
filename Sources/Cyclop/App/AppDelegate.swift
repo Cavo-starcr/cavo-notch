@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var privacyItem: NSMenuItem?
     private var privacyAllItem: NSMenuItem?
     private var privacySectionItems: [PrivacyMode.Section: NSMenuItem] = [:]
+    private var loginItem: NSMenuItem?
+    private var saveShotsItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller = NotchController()
@@ -54,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         login.target = self
         login.state = launchAtLoginEnabled ? .on : .off
         menu.addItem(login)
+        loginItem = login
 
         // Sits next to the panel switch rather than among the folder items: it
         // changes what the panel shows, and it is the one people look for in a
@@ -97,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         saveShots.target = self
         saveShots.state = NotchViewModel.saveClipboardImagesEnabled ? .on : .off
         menu.addItem(saveShots)
+        saveShotsItem = saveShots
 
         let openFolder = NSMenuItem(
             title: localized("Show Screenshots Folder"),
@@ -140,19 +144,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller?.toggle()
     }
 
-    /// The size is measured when the menu opens, not kept fresh in between: a
-    /// folder nobody is looking at deserves no bookkeeping.
+    /// Everything shown is re-read when the menu opens, not kept fresh in
+    /// between: a menu nobody is looking at deserves no bookkeeping — and a
+    /// state set once at launch quietly goes stale. Launch-at-login is the
+    /// live case: System Settings can switch it off from outside, and the
+    /// checkmark here used to keep claiming otherwise until relaunch (#11).
     func menuWillOpen(_ menu: NSMenu) {
         refreshPrivacyItems()
+        loginItem?.state = launchAtLoginEnabled ? .on : .off
+        saveShotsItem?.state = NotchViewModel.saveClipboardImagesEnabled ? .on : .off
+
         guard let clearVaultItem else { return }
-        let usage = ScreenshotVault.usage()
-        if usage.files == 0 {
-            clearVaultItem.title = localized("Clear Screenshots Folder")
-            clearVaultItem.isEnabled = false
-        } else {
+        // Off the main thread: walking the folder takes as long as the folder
+        // is big, and this is the thread the whole panel lives on (#11). The
+        // menu is already open when the answer lands; the title updates in
+        // place.
+        DispatchQueue.global(qos: .userInitiated).async { [weak clearVaultItem] in
+            let usage = ScreenshotVault.usage()
             let size = ByteCountFormatter.string(fromByteCount: usage.bytes, countStyle: .file)
-            clearVaultItem.title = localized("Clear Screenshots Folder (%@)", size)
-            clearVaultItem.isEnabled = true
+            DispatchQueue.main.async {
+                guard let clearVaultItem else { return }
+                if usage.files == 0 {
+                    clearVaultItem.title = localized("Clear Screenshots Folder")
+                    clearVaultItem.isEnabled = false
+                } else {
+                    clearVaultItem.title = localized("Clear Screenshots Folder (%@)", size)
+                    clearVaultItem.isEnabled = true
+                }
+            }
         }
     }
 

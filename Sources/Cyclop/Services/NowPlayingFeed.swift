@@ -12,6 +12,9 @@ final class NowPlayingFeed {
         var duration: TimeInterval = 0
         var elapsed: TimeInterval = 0
         var rate: Double = 0
+        /// When `elapsed` was read. MediaRemote reports a reading, not a
+        /// running clock — without this the reading cannot be aged.
+        var takenAt: Date?
         /// Only present on the update where the track changed.
         var artwork: Data?
         /// Name of the app owning the session, resolved from its pid.
@@ -143,6 +146,11 @@ final class NowPlayingFeed {
     private func handle(line: Data) {
         guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { return }
         if object["error"] != nil {
+            // The helper just said it cannot work at all. Left alone, its perl
+            // host would idle in the sleep loop for the rest of the app's life,
+            // holding memory for a route that is closed (#8) — so the process
+            // goes down with the route, and `stopped` keeps it down.
+            stop()
             onUnavailable?()
             return
         }
@@ -156,6 +164,9 @@ final class NowPlayingFeed {
         snapshot.duration = object["duration"] as? Double ?? 0
         snapshot.elapsed = object["elapsed"] as? Double ?? 0
         snapshot.rate = object["rate"] as? Double ?? 0
+        if let seconds = object["timestamp"] as? Double, seconds > 0 {
+            snapshot.takenAt = Date(timeIntervalSince1970: seconds)
+        }
         if let base64 = object["artwork"] as? String {
             snapshot.artwork = Data(base64Encoded: base64)
         }

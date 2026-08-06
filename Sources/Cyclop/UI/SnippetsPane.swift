@@ -18,6 +18,7 @@ struct SnippetsPane: View {
     var body: some View {
         VStack(spacing: 6) {
             if isAdding { editor } else { search }
+            if snippets.fileBroken { brokenNotice }
             list
         }
         .padding(.top, 2)
@@ -76,6 +77,24 @@ struct SnippetsPane: View {
         // actually on screen, so arriving on the tab and coming back from the
         // editor both land the same way.
         .onAppear { if wantsKeyboard { focused = .search } }
+    }
+
+    /// The refusal to write over a broken file (#7) is only honest if it is
+    /// said out loud: a log line is where refusals go to be unread.
+    private var brokenNotice: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Color.yellow.opacity(0.85))
+            Text("snippets.json is broken — click to open; nothing is overwritten")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { SnippetStore.reveal() }
     }
 
     // MARK: - Adding

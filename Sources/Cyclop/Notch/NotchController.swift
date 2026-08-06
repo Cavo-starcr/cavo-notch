@@ -172,6 +172,12 @@ final class NotchController {
         pointer.openRect = geometry.hoverRect
         pointer.warmZone = geometry.warmZone
         pointer.closeRect = geometry.expandedHoverRect
+        // A real notch is a hole: nothing is under it, so opening the moment the
+        // pointer arrives costs nothing. A synthetic one sits on a working menu
+        // bar, and a pointer crossing the middle of it is usually on its way
+        // somewhere else — unfolding the panel over what it was reaching for is
+        // the whole complaint. Staying put is what asks for the panel.
+        pointer.openDelay = geometry.isPhysical ? 0.05 : 0.3
         pointer.isDragging = { [weak root] in root?.isReceivingDrag ?? false }
         pointer.isPanelOpen = { [weak vm] in vm?.isOpen ?? false }
         pointer.onChange = { [weak self] inside in
@@ -299,7 +305,10 @@ final class NotchController {
 
     private func applyActiveRect(open: Bool) {
         guard let vm = viewModel, let rootView else { return }
-        let size = open ? vm.geometry.expandedSize : vm.geometry.notchSize
+        // Collapsed, the panel claims only its target strip — on a synthetic
+        // notch that is deliberately shallower than the menu bar, so clicks on
+        // status items underneath reach them instead of a panel nobody can see.
+        let size = open ? vm.geometry.expandedSize : vm.geometry.collapsedSize
         var rect = vm.geometry.contentRect(for: size)
         if open {
             // Slack so the concave shoulders stay grabbable. Never while
