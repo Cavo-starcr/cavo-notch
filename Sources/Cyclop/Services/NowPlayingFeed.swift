@@ -146,6 +146,11 @@ final class NowPlayingFeed {
     private func handle(line: Data) {
         guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { return }
         if object["error"] != nil {
+            // The helper just said it cannot work at all. Left alone, its perl
+            // host would idle in the sleep loop for the rest of the app's life,
+            // holding memory for a route that is closed (#8) — so the process
+            // goes down with the route, and `stopped` keeps it down.
+            stop()
             onUnavailable?()
             return
         }
