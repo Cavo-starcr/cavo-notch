@@ -118,6 +118,18 @@ final class CalendarStore: ObservableObject {
         }
     }
 
+    /// Calendars unchecked in Calendar.app's sidebar. EventKit has no public
+    /// notion of this at all — "shown or not" is Calendar.app's own UI state,
+    /// not calendar data, so it lives in Calendar.app's preferences instead.
+    /// The identifiers there are the same ones EventKit hands out: Calendar.app
+    /// and EventKit both read the same underlying calendar store.
+    private static func hiddenCalendarIdentifiers() -> Set<String> {
+        guard let disabled = CFPreferencesCopyAppValue(
+            "DisabledCalendars" as CFString, "com.apple.iCal" as CFString
+        ) as? [String: [String]] else { return [] }
+        return Set(disabled.values.flatMap { $0 })
+    }
+
     private func observe() {
         guard observer == nil else { return }
         observer = NotificationCenter.default.addObserver(
@@ -156,11 +168,13 @@ final class CalendarStore: ObservableObject {
 
     func reload() {
         guard access == .granted else { return }
+        let hidden = Self.hiddenCalendarIdentifiers()
+        let calendars = store.calendars(for: .event).filter { !hidden.contains($0.calendarIdentifier) }
         let start = Date()
         let predicate = store.predicateForEvents(
             withStart: start,
             end: start.addingTimeInterval(horizon),
-            calendars: nil
+            calendars: calendars
         )
         meetings = store.events(matching: predicate)
             .filter { !$0.isAllDay && $0.status != .canceled }
