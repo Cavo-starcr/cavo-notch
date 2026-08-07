@@ -27,6 +27,10 @@ final class CalendarStore: ObservableObject {
             let now = Date()
             return start <= now && now < end
         }
+
+        func overlaps(_ other: Meeting) -> Bool {
+            start < other.end && end > other.start
+        }
     }
 
     @Published private(set) var access: Access = .notRequested

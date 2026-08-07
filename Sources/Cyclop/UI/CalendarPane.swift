@@ -81,7 +81,10 @@ struct CalendarPane: View {
         .padding(.top, 4)
     }
 
-    /// Everything after the next meeting, as a column on the right.
+    /// Everything after the next meeting, as a column on the right. A meeting
+    /// that overlaps `next` in time gets its own Join button — otherwise the
+    /// only way in is switching to Calendar, and the whole point of an
+    /// overlap is that two meetings are joinable right now, not just one.
     private var rest: some View {
         VStack(alignment: .leading, spacing: 7) {
             ForEach(calendar.upcoming.prefix(4)) { meeting in
@@ -102,6 +105,10 @@ struct CalendarPane: View {
                         height: 11,
                         seed: UInt64(bitPattern: Int64(meeting.id.hashValue))
                     )
+                    if meeting.link != nil, let next = calendar.next, meeting.overlaps(next) {
+                        Spacer(minLength: 4)
+                        joinButton(for: meeting)
+                    }
                 }
             }
             if calendar.upcoming.isEmpty {
@@ -112,6 +119,23 @@ struct CalendarPane: View {
             Spacer(minLength: 0)
         }
         .frame(width: 230, alignment: .leading)
+    }
+
+    /// An icon rather than the label the main button spells out: the row has
+    /// room for a timestamp and a once-truncated title already, and "Подключиться"
+    /// wrapped onto two lines the one time it was tried at this width.
+    private func joinButton(for meeting: CalendarStore.Meeting) -> some View {
+        Button {
+            calendar.join(meeting)
+        } label: {
+            Image(systemName: "video.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(Theme.surfaceHover))
+        }
+        .buttonStyle(.plain)
+        .help(localized("Join"))
     }
 
     private func subtitle(for meeting: CalendarStore.Meeting) -> String {
