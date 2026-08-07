@@ -124,9 +124,22 @@ final class CalendarStore: ObservableObject {
     /// The identifiers there are the same ones EventKit hands out: Calendar.app
     /// and EventKit both read the same underlying calendar store.
     private static func hiddenCalendarIdentifiers() -> Set<String> {
-        guard let disabled = CFPreferencesCopyAppValue(
+        let stored = CFPreferencesCopyAppValue(
             "DisabledCalendars" as CFString, "com.apple.iCal" as CFString
-        ) as? [String: [String]] else { return [] }
+        )
+        // No key at all is the ordinary case — it means nothing is hidden.
+        guard let stored else { return [] }
+
+        // A key that is present but no longer shaped the way we read it is the
+        // case worth saying out loud. This is Calendar.app's own storage, not an
+        // API with a contract: the day it is restructured, this function starts
+        // returning an empty set, which is indistinguishable from "nothing is
+        // hidden" and quietly puts the hidden calendars back on screen. Nobody
+        // files that as a bug — they just see meetings that are not theirs.
+        guard let disabled = stored as? [String: [String]] else {
+            NSLog("Cyclop: com.apple.iCal DisabledCalendars is no longer [String: [String]] — hidden calendars will be shown again")
+            return []
+        }
         return Set(disabled.values.flatMap { $0 })
     }
 
