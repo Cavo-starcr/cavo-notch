@@ -128,10 +128,16 @@ final class ShelfStore: ObservableObject {
     func copy(_ item: ShelfItem) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+        // The file goes on first and everything below is added to the item it
+        // creates. Order is the whole of it: `setData` always writes to the
+        // first item, `writeObjects` appends a new one — so marking first put
+        // the picture on one item and the file on another. One card then
+        // arrives as two objects, and an editor that accepts both pastes the
+        // screenshot twice.
+        pasteboard.writeObjects([item.url as NSURL])
         // Tells ClipboardStore this change came from us, so a copied screenshot
         // is not saved to disk a second time.
         pasteboard.setData(Data(), forType: .cyclopInternal)
-        pasteboard.writeObjects([item.url as NSURL])
         if let type = UTType(filenameExtension: item.url.pathExtension),
            type.conforms(to: .image),
            let data = try? Data(contentsOf: item.url) {
