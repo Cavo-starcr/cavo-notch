@@ -142,3 +142,6 @@
 "One permission, and only on a button: the Calendar tab asks, nothing else does." = "Одно разрешение, и то по кнопке: его просит вкладка календаря, больше никто.";
 "Skip" = "Пропустить";
 "Next" = "Далее";
+
+/* Название продукта — одинаково во всех языках, но ключ обязателен */
+"CAVO Notch" = "CAVO Notch";
