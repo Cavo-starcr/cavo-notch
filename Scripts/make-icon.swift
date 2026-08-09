@@ -1,10 +1,13 @@
 #!/usr/bin/env swift
 // Renders Resources/AppIcon.icns from code — no design tool in the loop.
+// CAVO mark: brand-blue squircle with the notch cut out of its top edge and the
+// double chevron in the middle. Drawn on a 1024 canvas and scaled down, so the
+// 16pt size is the same shape rather than a separate asset that drifts.
 // Usage: swift Scripts/make-icon.swift <output.icns>
 import AppKit
 
 let outPath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "AppIcon.icns"
-let iconset = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Cyclop.iconset")
+let iconset = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("CAVONotch.iconset")
 try? FileManager.default.removeItem(at: iconset)
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 
@@ -29,8 +32,8 @@ func draw(size s: CGFloat) -> NSBitmapImageRep {
     let gradient = CGGradient(
         colorsSpace: CGColorSpaceCreateDeviceRGB(),
         colors: [
-            CGColor(red: 0.27, green: 0.27, blue: 0.30, alpha: 1),
-            CGColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1)
+            CGColor(red: 0.039, green: 0.400, blue: 1.000, alpha: 1),  // brand 500 #0A66FF
+            CGColor(red: 0.043, green: 0.251, blue: 0.651, alpha: 1)   // brand 700 #0B40A6
         ] as CFArray,
         locations: [0, 1]
     )!
@@ -53,27 +56,29 @@ func draw(size s: CGFloat) -> NSBitmapImageRep {
     notch.addLine(to: CGPoint(x: nx + notchW, y: body.maxY))
     notch.closeSubpath()
     ctx.addPath(notch)
-    ctx.setFillColor(CGColor(red: 0.02, green: 0.02, blue: 0.03, alpha: 1))
+    ctx.setFillColor(CGColor(red: 0.024, green: 0.055, blue: 0.133, alpha: 1))  // navy 950 #060E22
     ctx.fillPath()
 
-    // One eye — the cyclops.
-    let cx = body.midX, cy = body.midY - 40 * k
-    let ew = 460 * k, eh = 250 * k
-    let lens = CGMutablePath()
-    lens.move(to: CGPoint(x: cx - ew / 2, y: cy))
-    lens.addQuadCurve(to: CGPoint(x: cx + ew / 2, y: cy), control: CGPoint(x: cx, y: cy + eh))
-    lens.addQuadCurve(to: CGPoint(x: cx - ew / 2, y: cy), control: CGPoint(x: cx, y: cy - eh))
-    lens.closeSubpath()
-    ctx.addPath(lens)
-    ctx.setFillColor(CGColor(gray: 1, alpha: 0.95))
-    ctx.fillPath()
-
-    ctx.addPath(lens)
-    ctx.clip()
-    ctx.setFillColor(CGColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1))
-    ctx.fillEllipse(in: CGRect(x: cx - 78 * k, y: cy - 78 * k, width: 156 * k, height: 156 * k))
-    ctx.setFillColor(CGColor(gray: 1, alpha: 0.9))
-    ctx.fillEllipse(in: CGRect(x: cx + 12 * k, y: cy + 26 * k, width: 40 * k, height: 40 * k))
+    // The CAVO double chevron. Stroked rather than filled: one path, and the cap
+    // shape stays right at every size instead of the joins going ragged at 16pt.
+    let cx = body.midX, cy = body.midY - 24 * k
+    let arm = 112 * k          // horizontal reach of one chevron
+    let rise = 142 * k         // half-height
+    let gap = 176 * k          // distance between the two — wide enough that the
+                               // two stay separate marks at 16pt instead of merging
+    ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.97))
+    ctx.setLineWidth(64 * k)
+    ctx.setLineCap(.round)
+    ctx.setLineJoin(.round)
+    for offset in [-gap / 2 - arm / 2, gap / 2 - arm / 2] {
+        let x = cx + offset
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: x, y: cy + rise))
+        path.addLine(to: CGPoint(x: x + arm, y: cy))
+        path.addLine(to: CGPoint(x: x, y: cy - rise))
+        ctx.addPath(path)
+        ctx.strokePath()
+    }
     ctx.restoreGState()
 
     NSGraphicsContext.restoreGraphicsState()

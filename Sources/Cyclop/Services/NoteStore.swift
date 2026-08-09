@@ -28,7 +28,7 @@ final class NoteStore: ObservableObject {
     private static let file: URL = {
         let fm = FileManager.default
         let folder = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Cyclop", isDirectory: true)
+            .appendingPathComponent("CAVO Notch", isDirectory: true)
         try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder.appendingPathComponent("notes.json")
     }()

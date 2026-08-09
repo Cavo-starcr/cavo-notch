@@ -13,12 +13,12 @@ enum ScreenshotVault {
         let fm = FileManager.default
         let pictures = fm.homeDirectoryForCurrentUser
             .appendingPathComponent("Pictures", isDirectory: true)
-            .appendingPathComponent("Cyclop", isDirectory: true)
+            .appendingPathComponent("CAVO Notch", isDirectory: true)
         if (try? fm.createDirectory(at: pictures, withIntermediateDirectories: true)) != nil {
             return pictures
         }
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Cyclop", isDirectory: true)
+            .appendingPathComponent("CAVO Notch", isDirectory: true)
             .appendingPathComponent("Screenshots", isDirectory: true)
         try? fm.createDirectory(at: support, withIntermediateDirectories: true)
         return support
