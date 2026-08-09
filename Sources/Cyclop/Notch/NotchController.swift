@@ -289,6 +289,14 @@ final class NotchController {
 
     /// Where the notch is on screen, for anything that needs to point at it.
     var notchRect: CGRect? { viewModel?.geometry.hoverRect }
+
+    /// Whether the panel is unfolded right now.
+    ///
+    /// The onboarding needs the state as well as the signal: if the pointer
+    /// already happens to rest on the notch when the gesture step appears, no
+    /// new open ever fires and the step would wait for something that already
+    /// happened.
+    var isPanelOpen: Bool { viewModel?.isOpen ?? false }
     /// Handed to the menu bar item, which is the only part of the app visible
     /// while the panel is collapsed — the notch itself stays black at rest.
     var timer: CountdownTimer? { viewModel?.timer }

@@ -23,9 +23,6 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
     private var hint: NotchHintPanel?
-    private var cancellable: AnyCancellable?
-    /// Flipped when the panel unfolds, which is how the gesture step passes.
-    private let opened = OpenedFlag()
 
     private weak var controller: NotchController?
 
@@ -43,11 +40,14 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
             return
         }
 
-        let flag = opened
+        let controller = self.controller
         let view = Onboarding(
             showHint: { [weak self] on in self?.setHint(on) },
             finish: { [weak self] in self?.finish() },
-            panelOpened: Binding(get: { flag.value }, set: { flag.value = $0 })
+            // Straight from the controller: the window has nothing to add, and a
+            // flag in between was exactly what stopped the step from noticing.
+            panelOpened: controller?.didOpenPanel ?? Empty().eraseToAnyPublisher(),
+            isPanelOpenNow: { controller?.isPanelOpen ?? false }
         )
 
         let w = NSWindow(
@@ -69,12 +69,6 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
         w.isReleasedWhenClosed = false
         window = w
 
-        // The panel can be opened by the pointer at any moment; the walkthrough
-        // only cares while the gesture step is on screen, and the view decides.
-        cancellable = controller?.didOpenPanel
-            .receive(on: RunLoop.main)
-            .sink { [weak self] in self?.opened.value = true }
-
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
     }
@@ -91,9 +85,7 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         UserDefaults.standard.set(Self.currentVersion, forKey: Self.seenKey)
         setHint(false)
-        cancellable = nil
         window = nil
-        opened.value = false
         NSApp.deactivate()
     }
 
@@ -109,12 +101,6 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
         let panel = NotchHintPanel(below: rect)
         panel.orderFrontRegardless()
         hint = panel
-    }
-
-    /// A tiny observable box, because SwiftUI needs a `Binding` and this object is
-    /// not a view model — one flag does not deserve one.
-    private final class OpenedFlag {
-        var value = false
     }
 }
 

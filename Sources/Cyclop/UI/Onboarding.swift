@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// First-run walkthrough.
@@ -18,12 +19,28 @@ struct Onboarding: View {
     let showHint: (Bool) -> Void
     /// Called on the last step, or on skip.
     let finish: () -> Void
-    /// Raised by the window when the panel opens, so the gesture step can pass.
-    @Binding var panelOpened: Bool
+    /// Fires when the panel unfolds — that is what passes the gesture step.
+    ///
+    /// A publisher, not a flag behind a `Binding`: a plain property on a plain
+    /// class invalidates nothing, so `onChange` on it never ran and the step sat
+    /// on "waiting for you" with the panel wide open behind it.
+    let panelOpened: AnyPublisher<Void, Never>
+    /// Asked when the gesture step appears, for the case where the pointer is
+    /// already there and no new opening will happen.
+    let isPanelOpenNow: () -> Bool
 
     @State private var step = 0
 
     private let last = 3
+
+    /// The gesture landed. Idempotent — the publisher can fire more than once
+    /// while the step is up, and the panel opens again every time the pointer
+    /// returns.
+    private func passGesture() {
+        guard step == 1 else { return }
+        showHint(false)
+        withAnimation(.easeOut(duration: 0.25)) { step = 2 }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,11 +56,11 @@ struct Onboarding: View {
             // The hint belongs to exactly one step, and it must go away whether
             // the step was passed, skipped or navigated away from.
             showHint(new == 1)
+            // Entering the step with the panel already unfolded: nothing further
+            // will open, so the step is passed on arrival.
+            if new == 1, isPanelOpenNow() { passGesture() }
         }
-        .onChange(of: panelOpened) { _, opened in
-            guard opened, step == 1 else { return }
-            withAnimation(.easeOut(duration: 0.25)) { step = 2 }
-        }
+        .onReceive(panelOpened) { _ in passGesture() }
         .onDisappear { showHint(false) }
     }
 
