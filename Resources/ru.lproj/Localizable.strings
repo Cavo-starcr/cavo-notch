@@ -1,4 +1,4 @@
-/* Cyclop — русский. Ключи — английский текст, поэтому строка без перевода
+/* CAVO Notch — русский. Ключи — английский текст, поэтому строка без перевода
    просто останется английской, а не превратится в идентификатор. */
 
 /* Вкладки */
@@ -56,7 +56,7 @@
 "Join · %@" = "Подключиться · %@";
 "No other meetings this week" = "Других встреч на неделе нет";
 "See your next meetings" = "Показать ближайшие встречи";
-"Cyclop needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab." = "Нужен доступ к Календарю. Это единственное разрешение,\nкоторое просит Cyclop — и только для этой вкладки.";
+"CAVO Notch needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab." = "Нужен доступ к Календарю. Это единственное разрешение,\nкоторое просит Cyclop — и только для этой вкладки.";
 "Allow" = "Разрешить";
 "Calendar access is off" = "Доступ к Календарю закрыт";
 "Settings → Privacy → Calendars" = "Настройки → Конфиденциальность → Календари";
@@ -86,3 +86,39 @@
 "Show" = "Показать";
 "Hide" = "Скрыть";
 "All" = "Всё";
+
+/* Таймер */
+"Timer" = "Таймер";
+"Focus" = "Работа";
+"Break" = "Перерыв";
+"Ready" = "Готов";
+"Paused" = "Пауза";
+"Done" = "Готово";
+"Pomodoro" = "Помодоро";
+"%d min" = "%d мин";
+"+1 min" = "+1 мин";
+"Pause" = "Пауза";
+"Resume" = "Продолжить";
+"Stop" = "Стоп";
+"Dismiss" = "Понятно";
+"Time is up" = "Время вышло";
+"Pick a length, or start a pomodoro" = "Выберите длительность или запустите помодоро";
+
+/* Действия на полке */
+"Quick Look" = "Быстрый просмотр";
+"Copy Path" = "Копировать путь";
+"Compress" = "Сжать";
+"Compress %d Items" = "Сжать %d файла";
+"Compressing…" = "Сжатие…";
+"Archive" = "Архив";
+"Share…" = "Поделиться…";
+"Rename…" = "Переименовать…";
+"Rename" = "Переименовать";
+"That name is taken or not allowed" = "Такое имя занято или недопустимо";
+
+/* Уведомления таймера */
+"Timer Notifications" = "Уведомления таймера";
+"Focus done" = "Работа закончена";
+"Break for %d min" = "Перерыв %d мин";
+"Break over" = "Перерыв закончен";
+"Back to it" = "Возвращаемся";

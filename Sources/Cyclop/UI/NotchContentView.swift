@@ -96,6 +96,8 @@ struct NotchContentView: View {
             EmptyView()
         case .notes:
             NotesCounter(notes: vm.notes)
+        case .timer:
+            TimerCounter(timer: vm.timer)
         }
     }
 
@@ -157,6 +159,8 @@ struct NotchContentView: View {
             TranslatePane(translator: vm.translator, wantsKeyboard: $vm.wantsKeyboard)
         case .notes:
             NotesPane(notes: vm.notes, privacy: vm.privacy, wantsKeyboard: $vm.wantsKeyboard)
+        case .timer:
+            TimerPane(timer: vm.timer)
         }
     }
 }

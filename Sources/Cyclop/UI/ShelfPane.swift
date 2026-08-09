@@ -50,6 +50,7 @@ struct ShelfPane: View {
                     case .ended:
                         hoverPoint = nil
                         hoveredID = nil
+                        shelf.hoveredID = nil
                     }
                 }
                 .onPreferenceChange(CardFramesKey.self) { new in
@@ -63,11 +64,21 @@ struct ShelfPane: View {
         .padding(.top, 2)
     }
 
+    /// Compresses whatever is selected. Any selected card names the same set —
+    /// `actionURLs` resolves a card to its selection — so the first one does.
+    private func compressSelection() {
+        guard let anchor = shelf.items.first(where: { shelf.isSelected($0) }) else { return }
+        shelf.compress(anchor)
+    }
+
     /// The one decision both signals feed: which frame holds the last known
     /// pointer position.
     private func rehit() {
         guard let hoverPoint else { return }
         hoveredID = frames.first(where: { $0.value.contains(hoverPoint) })?.key
+        // Handed to the store so the space bar knows which card is being looked
+        // at. Plain assignment, not a published change — see `ShelfStore`.
+        shelf.hoveredID = hoveredID
     }
 
     private var dropHint: some View {
@@ -96,8 +107,29 @@ struct ShelfPane: View {
                     .font(.system(size: 9))
                     .foregroundStyle(Theme.tertiary)
             }
+            // Says where the archive went, because that is the one part of
+            // compressing that cannot be seen happening. The card lands on the
+            // shelf either way; this names the folder it also landed in.
+            if shelf.isCompressing {
+                HStack(spacing: 5) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.7)
+                    Text(localized("Compressing…"))
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.tertiary)
+                }
+            }
             Spacer()
             if !shelf.selection.isEmpty {
+                // Zipping a selection from the footer as well as from a card's
+                // menu: with several cards picked, the footer is where the eye
+                // already is — it is the row that says how many.
+                Button(localized("Compress")) { compressSelection() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(shelf.isCompressing ? Theme.tertiary : Theme.secondary)
+                    .disabled(shelf.isCompressing)
                 Button("Deselect") { shelf.clearSelection() }
                     .buttonStyle(.plain)
                     .font(.system(size: 10, weight: .medium))
@@ -126,7 +158,29 @@ private struct ShelfCard: View {
     /// correctly when cards move under a stationary pointer.
     let isHovered: Bool
 
+    /// Non-nil while this card's name is being edited; holds the draft.
+    @State private var renaming: String?
+    /// The card's own AppKit view, needed as the anchor for the share popover —
+    /// `NSSharingServicePicker` is AppKit and wants a rect in a real view.
+    @State private var host: NSView?
+
     private var isSelected: Bool { shelf.isSelected(item) }
+
+    private var renameBinding: Binding<Bool> {
+        Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })
+    }
+
+    /// One card compresses itself; a selection this card belongs to compresses
+    /// as a set, and the title says which is about to happen.
+    private var compressTitle: String {
+        let count = shelf.actionURLs(startingAt: item).count
+        return count > 1 ? localized("Compress %d Items", count) : localized("Compress")
+    }
+
+    private func share() {
+        guard let host else { return }
+        shelf.share(item, from: host, rect: host.bounds)
+    }
 
     var body: some View {
         VStack(spacing: 6) {
@@ -187,15 +241,125 @@ private struct ShelfCard: View {
                 .padding(4)
             }
         }
+        // Quick Look is a button rather than the space bar it is everywhere else:
+        // the panel only takes the keyboard on the tabs that are typed into, and
+        // claiming it for the shelf would dim the caret of whatever the person is
+        // actually working in every time the pointer crossed the notch. The
+        // preview is one press either way.
+        .overlay(alignment: .bottomTrailing) {
+            if isHovered {
+                Button { shelf.preview(item) } label: {
+                    Image(systemName: "eye.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.white.opacity(0.75))
+                }
+                .buttonStyle(.plain)
+                .padding(4)
+                .help(localized("Quick Look"))
+            }
+        }
+        // Invisible, and only here to be an anchor: the share sheet is AppKit and
+        // needs a real view with a real rect to point at.
+        .background(HostView { host = $0 })
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contextMenu {
-            Button("Copy") { shelf.copy(item) }
+            Button("Quick Look") { shelf.preview(item) }
             Button("Open") { shelf.open(item) }
             Button("Show in Finder") { shelf.reveal(item) }
             Divider()
+            Button("Copy") { shelf.copy(item) }
+            Button("Copy Path") { shelf.copyPath(item) }
+            // Named by what it will produce rather than by the verb: with three
+            // cards selected, "Compress" alone does not say whether the answer
+            // is one archive or three.
+            Button(compressTitle) { shelf.compress(item) }
+                .disabled(shelf.isCompressing)
+            Button("Share…") { share() }
+            Divider()
+            Button("Rename…") { renaming = item.name }
             Button("Remove from Shelf") { shelf.remove(item) }
+        }
+        // Renaming happens in the pane, not in a window: the panel is already a
+        // borderless thing over the menu bar, and a modal sheet has nothing to
+        // hang from.
+        .popover(isPresented: renameBinding, arrowEdge: .bottom) {
+            RenameField(name: renaming ?? item.name) { newName in
+                let ok = shelf.rename(item, to: newName)
+                renaming = nil
+                return ok
+            }
         }
         .animation(Theme.contentAnimation, value: isHovered)
         .animation(Theme.contentAnimation, value: isSelected)
+    }
+}
+
+/// Reports the AppKit view backing a SwiftUI subtree.
+///
+/// Only exists because `NSSharingServicePicker` predates SwiftUI and takes a
+/// view plus a rect rather than a SwiftUI anchor. Draws nothing, hit-tests
+/// nothing, and hands the view up once.
+private struct HostView: NSViewRepresentable {
+    let found: (NSView) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = PassthroughView()
+        // The view is inside the card, so a subview that accepted clicks would
+        // sit between the card and its drag source.
+        DispatchQueue.main.async { found(view) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class PassthroughView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+}
+
+/// The rename popover: a field, and Enter to commit.
+///
+/// Refuses rather than closes when the name is taken or invalid — `ShelfStore`
+/// decides, and the field stays open with the draft intact so the next attempt
+/// starts from what was typed instead of from the old name.
+private struct RenameField: View {
+    @State var name: String
+    /// Returns whether the rename went through.
+    let commit: (String) -> Bool
+
+    @State private var rejected = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            TextField("", text: $name)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .frame(width: 220)
+                .focused($focused)
+                .onSubmit { attempt() }
+                .onChange(of: name) { rejected = false }
+            Button(localized("Rename")) { attempt() }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white)
+        }
+        .padding(10)
+        .overlay(alignment: .bottomLeading) {
+            if rejected {
+                Text(localized("That name is taken or not allowed"))
+                    .font(.system(size: 9))
+                    .foregroundStyle(Color(red: 1, green: 0.55, blue: 0.5))
+                    .padding(.leading, 10)
+                    .padding(.bottom, -4)
+            }
+        }
+        // The popover is its own window and does become key, so unlike the panel
+        // it can simply take the field.
+        .onAppear { focused = true }
+    }
+
+    private func attempt() {
+        if !commit(name) { rejected = true }
     }
 }

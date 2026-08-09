@@ -1,4 +1,4 @@
-/* Cyclop — English. The keys are the English text itself, so this table is a
+/* CAVO Notch — English. The keys are the English text itself, so this table is a
    formality: it exists so the bundle declares English as a localisation, and so
    a phrase can be reworded here without touching the code. */
 
@@ -57,7 +57,7 @@
 "Join · %@" = "Join · %@";
 "No other meetings this week" = "No other meetings this week";
 "See your next meetings" = "See your next meetings";
-"Cyclop needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab." = "Cyclop needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab.";
+"CAVO Notch needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab." = "CAVO Notch needs access to Calendar. It is the only permission\nthe app asks for, and only for this tab.";
 "Allow" = "Allow";
 "Calendar access is off" = "Calendar access is off";
 "Settings → Privacy → Calendars" = "Settings → Privacy → Calendars";
@@ -87,3 +87,39 @@
 "Show" = "Show";
 "Hide" = "Hide";
 "All" = "All";
+
+/* Timer */
+"Timer" = "Timer";
+"Focus" = "Focus";
+"Break" = "Break";
+"Ready" = "Ready";
+"Paused" = "Paused";
+"Done" = "Done";
+"Pomodoro" = "Pomodoro";
+"%d min" = "%d min";
+"+1 min" = "+1 min";
+"Pause" = "Pause";
+"Resume" = "Resume";
+"Stop" = "Stop";
+"Dismiss" = "Dismiss";
+"Time is up" = "Time is up";
+"Pick a length, or start a pomodoro" = "Pick a length, or start a pomodoro";
+
+/* Shelf actions */
+"Quick Look" = "Quick Look";
+"Copy Path" = "Copy Path";
+"Compress" = "Compress";
+"Compress %d Items" = "Compress %d Items";
+"Compressing…" = "Compressing…";
+"Archive" = "Archive";
+"Share…" = "Share…";
+"Rename…" = "Rename…";
+"Rename" = "Rename";
+"That name is taken or not allowed" = "That name is taken or not allowed";
+
+/* Timer notifications */
+"Timer Notifications" = "Timer Notifications";
+"Focus done" = "Focus done";
+"Break for %d min" = "Break for %d min";
+"Break over" = "Break over";
+"Back to it" = "Back to it";

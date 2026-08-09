@@ -159,6 +159,11 @@ final class NotchController {
             vm.wantsKeyboard = true
         }
 
+        // Bare keys a pane claims for itself — currently the shelf's space bar.
+        panel.onKeyDown = { [weak self] event in
+            self?.viewModel?.handleKeyDown(event) ?? false
+        }
+
         panel.contentView = root
         panel.ignoresMouseEvents = true
         panel.setFrame(geometry.windowFrame, display: false)
@@ -272,6 +277,9 @@ final class NotchController {
     /// reads four sections and writes them one at a time, and a controller
     /// method per section would be four methods that only forward.
     var privacy: PrivacyMode? { viewModel?.privacy }
+    /// Handed to the menu bar item, which is the only part of the app visible
+    /// while the panel is collapsed — the notch itself stays black at rest.
+    var timer: CountdownTimer? { viewModel?.timer }
 
     /// The visual half of closing, one pass after the keyboard was let go.
     private func collapse() {

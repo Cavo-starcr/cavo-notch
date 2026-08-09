@@ -58,8 +58,18 @@ final class NotchPanel: NSPanel {
     /// be noticed is here, where every event the window receives passes.
     var onPress: (() -> Void)?
 
+    /// Consulted before a key press is delivered anywhere. Returning true means
+    /// the press was handled and must not travel on.
+    ///
+    /// Separate from the editing shortcuts below because it is not about the
+    /// text views: it is how a pane claims a bare key of its own — the shelf
+    /// takes the space bar for Quick Look. Checked *after* the ⌘-shortcuts, so
+    /// a pane can never shadow copy and paste.
+    var onKeyDown: ((NSEvent) -> Bool)?
+
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, editingAction(for: event) != nil, perform(event) { return }
+        if event.type == .keyDown, onKeyDown?(event) == true { return }
         // Before `super`, so the window is already key by the time the click
         // reaches the field and places a caret.
         if event.type == .leftMouseDown { onPress?() }

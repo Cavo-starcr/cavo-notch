@@ -4,7 +4,7 @@ import Combine
 @MainActor
 final class NotchViewModel: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable {
-        case media, shelf, clipboard, snippets, calendar, translate, notes
+        case media, shelf, clipboard, snippets, calendar, translate, notes, timer
         var id: String { rawValue }
 
         var symbol: String {
@@ -16,6 +16,7 @@ final class NotchViewModel: ObservableObject {
             case .calendar: return "calendar"
             case .translate: return "translate"
             case .notes: return "note.text"
+            case .timer: return "timer"
             }
         }
 
@@ -28,19 +29,28 @@ final class NotchViewModel: ObservableObject {
             case .calendar: return localized("Calendar")
             case .translate: return localized("Translate")
             case .notes: return localized("Notes")
+            case .timer: return localized("Timer")
             }
         }
 
-        /// Tabs with a field in them. Landing on one hands it the keyboard, so
-        /// that arriving and typing is a single move.
-        var needsKeyboard: Bool { self == .translate || self == .snippets || self == .notes }
+        /// Tabs that want the keyboard when landed on.
+        ///
+        /// Three of them have a field in them, so arriving and typing is a
+        /// single move. The shelf has no field and is here for one key: space,
+        /// for Quick Look, the way it works in Finder. That is a deliberate
+        /// trade — the panel taking key status stops the insertion point
+        /// blinking in whatever is underneath, and the shelf is a tab one
+        /// arrives at to drag rather than to type. Worth it for the preview.
+        var needsKeyboard: Bool {
+            self == .translate || self == .snippets || self == .notes || self == .shelf
+        }
 
         /// Which rail the icon sits on. The left one carries the original six
         /// and is full — a seventh icon would outgrow the height the panel
         /// body has — so growth continues in a second column on the right,
-        /// which the scratch notes open.
+        /// which the scratch notes open and the timer now shares.
         static let leftRail: [Tab] = [.media, .shelf, .clipboard, .snippets, .calendar, .translate]
-        static let rightRail: [Tab] = [.notes]
+        static let rightRail: [Tab] = [.notes, .timer]
     }
 
     @Published var isOpen = false
@@ -81,6 +91,7 @@ final class NotchViewModel: ObservableObject {
     let translator: Translator
     let snippets: SnippetStore
     let notes: NoteStore
+    let timer = CountdownTimer()
     /// Shared by every pane that shows something worth not showing.
     let privacy = PrivacyMode()
 
@@ -161,6 +172,9 @@ final class NotchViewModel: ObservableObject {
         // Only picks up where it left off if access was granted earlier; it
         // never prompts on its own.
         calendar.start()
+        // A countdown outlives a relaunch, but only if it is still due — see
+        // `restore()` for why a lapsed one is dropped without a sound.
+        timer.restore()
 
         // Screenshots reach the shelf through here whether they were taken on
         // this Mac or on a phone: a copy made on the phone arrives in the same
@@ -185,6 +199,25 @@ final class NotchViewModel: ObservableObject {
         calendar.stop()
         // Whatever was typed makes it to disk even when quitting mid-thought.
         notes.flush()
+        // Leaves the due date on disk: quitting is not cancelling, and a timer
+        // with minutes left is picked up again on the next launch. Only the
+        // ticking stops.
+        timer.suspend()
+    }
+
+    /// A bare key press inside the panel. Returns whether it was consumed.
+    ///
+    /// Physical key codes, not characters — same reason `NotchPanel` matches the
+    /// editing shortcuts that way: a Cyrillic layout prints different characters
+    /// from the same keys, and the space bar is at code 49 in every layout there
+    /// is.
+    func handleKeyDown(_ event: NSEvent) -> Bool {
+        // Nothing bare while a modifier is down: those belong to the shortcuts.
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.subtracting(.function).isEmpty else { return false }
+        guard tab == .shelf, event.keyCode == 49 else { return false }
+        shelf.previewFromKeyboard()
+        return true
     }
 
     func accept(urls: [URL]) -> Bool {
