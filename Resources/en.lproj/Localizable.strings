@@ -123,3 +123,8 @@
 "Break for %d min" = "Break for %d min";
 "Break over" = "Break over";
 "Back to it" = "Back to it";
+
+/* Calendar picker */
+"Calendars" = "Calendars";
+"Choose which calendars appear here" = "Choose which calendars appear here";
+"Hidden calendars are not shown in this tab." = "Hidden calendars are not shown in this tab.";

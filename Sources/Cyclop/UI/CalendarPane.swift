@@ -10,6 +10,9 @@ struct CalendarPane: View {
     /// on its own, and the countdown in the panel's header shows one anyway.
     private var hidden: Bool { privacy.hides(.calendar, "calendar") }
 
+    /// Whether the calendar picker is open.
+    @State private var pickerOpen = false
+
     var body: some View {
         switch calendar.access {
         case .notRequested:
@@ -117,8 +120,35 @@ struct CalendarPane: View {
                     .foregroundStyle(Theme.tertiary)
             }
             Spacer(minLength: 0)
+            calendarFilter
         }
         .frame(width: 230, alignment: .leading)
+    }
+
+    /// The picker's handle: which accounts feed this tab.
+    ///
+    /// Sits at the foot of the agenda rather than in the header — the header
+    /// strip lies over the menu bar, where a click also toggles whatever menu
+    /// bar utility is watching for one.
+    private var calendarFilter: some View {
+        Button {
+            pickerOpen = true
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: calendar.isFiltered
+                      ? "line.3.horizontal.decrease.circle.fill"
+                      : "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 10))
+                Text(localized("Calendars"))
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundStyle(calendar.isFiltered ? Color.white.opacity(0.7) : Theme.tertiary)
+        }
+        .buttonStyle(.plain)
+        .help(localized("Choose which calendars appear here"))
+        .popover(isPresented: $pickerOpen, arrowEdge: .bottom) {
+            CalendarPicker(calendar: calendar)
+        }
     }
 
     /// An icon rather than the label the main button spells out: the row has
@@ -251,5 +281,78 @@ struct CalendarPane: View {
                 .foregroundStyle(Theme.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Which calendars feed the tab, grouped by the account they come from.
+///
+/// The account names are EventKit's own — "iCloud", "Google", "Exchange",
+/// whatever the Mac was told in Internet Accounts. That is why there is no
+/// "Google or Apple" switch anywhere in this app: the system already presents
+/// both as calendars, and the only question worth asking the user is which of
+/// them belong in a panel they glance at all day.
+private struct CalendarPicker: View {
+    @ObservedObject var calendar: CalendarStore
+
+    var body: some View {
+        let groups = calendar.groups()
+        VStack(alignment: .leading, spacing: 0) {
+            Text(localized("Calendars"))
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(groups) { group in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(group.account)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            ForEach(group.calendars) { entry in
+                                row(entry)
+                            }
+                        }
+                    }
+                }
+            }
+            // Tall enough for a couple of accounts, short enough to stay a
+            // popover rather than a window.
+            .frame(maxHeight: 220)
+
+            if calendar.isFiltered {
+                Divider().padding(.vertical, 8)
+                Text(localized("Hidden calendars are not shown in this tab."))
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(width: 260)
+    }
+
+    private func row(_ entry: CalendarStore.Entry) -> some View {
+        Button {
+            calendar.toggle(entry.id)
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: entry.on ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 11))
+                    .foregroundStyle(entry.on ? Color.accentColor : Color.secondary)
+                Circle()
+                    .fill(Color(entry.color))
+                    .frame(width: 6, height: 6)
+                Text(entry.title)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                    .foregroundStyle(entry.on ? .primary : .secondary)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

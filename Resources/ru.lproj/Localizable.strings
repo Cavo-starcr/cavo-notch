@@ -122,3 +122,8 @@
 "Break for %d min" = "Перерыв %d мин";
 "Break over" = "Перерыв закончен";
 "Back to it" = "Возвращаемся";
+
+/* Выбор календарей */
+"Calendars" = "Календари";
+"Choose which calendars appear here" = "Какие календари показывать здесь";
+"Hidden calendars are not shown in this tab." = "Снятые календари в этой вкладке не показываются.";

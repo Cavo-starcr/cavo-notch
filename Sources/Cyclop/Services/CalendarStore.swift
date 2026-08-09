@@ -181,12 +181,100 @@ final class CalendarStore: ObservableObject {
         }
     }
 
+    // MARK: - Which calendars count
+    //
+    // A Mac with a work Google account and a personal iCloud one has both in
+    // EventKit — Google calendars arrive through Internet Accounts and need no
+    // API, no OAuth and no network of our own. That is the whole "Google or
+    // Apple calendar" question answered by the system; what was missing is the
+    // choice of *which* of them belong in a panel you glance at all day, since
+    // "the next meeting" from the wrong account is worse than no meeting at all.
+
+    /// Calendars the user has switched off here, by identifier.
+    ///
+    /// Exclusions rather than inclusions on purpose: a calendar added later —
+    /// a new project, a shared team one — then shows up by itself instead of
+    /// silently missing from the panel until someone notices.
+    private static let excludedKey = "calendar.excluded"
+
+    private(set) var excluded: Set<String> = {
+        Set(UserDefaults.standard.stringArray(forKey: CalendarStore.excludedKey) ?? [])
+    }()
+
+    /// One account's calendars, for the picker.
+    struct Group: Identifiable {
+        let id: String
+        /// "iCloud", "Google", "Local" — whatever the account calls itself.
+        let account: String
+        let calendars: [Entry]
+    }
+
+    struct Entry: Identifiable {
+        let id: String
+        let title: String
+        let color: NSColor
+        let on: Bool
+    }
+
+    /// Everything EventKit offers, grouped by account, minus what Calendar.app
+    /// itself hides — a calendar unticked over there is not a choice to re-offer.
+    func groups() -> [Group] {
+        guard access == .granted else { return [] }
+        let hidden = Self.hiddenCalendarIdentifiers()
+        let visible = store.calendars(for: .event).filter { !hidden.contains($0.calendarIdentifier) }
+        let bySource = Dictionary(grouping: visible) { $0.source.title }
+        return bySource.keys.sorted().map { title in
+            Group(
+                id: title,
+                account: title,
+                calendars: (bySource[title] ?? [])
+                    .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                    .map {
+                        Entry(
+                            id: $0.calendarIdentifier,
+                            title: $0.title,
+                            color: $0.color ?? .systemBlue,
+                            on: !excluded.contains($0.calendarIdentifier)
+                        )
+                    }
+            )
+        }
+    }
+
+    private func activeCalendars() -> [EKCalendar] {
+        let hidden = Self.hiddenCalendarIdentifiers()
+        return store.calendars(for: .event).filter {
+            !hidden.contains($0.calendarIdentifier) && !excluded.contains($0.calendarIdentifier)
+        }
+    }
+
+    /// Flips one calendar and refetches. Refusing to switch off the last one:
+    /// an empty calendar tab looks broken rather than filtered, and the way to
+    /// have no meetings on screen is to not open the tab.
+    func toggle(_ id: String) {
+        var next = excluded
+        if next.contains(id) {
+            next.remove(id)
+        } else {
+            let total = groups().reduce(0) { $0 + $1.calendars.count }
+            guard next.count + 1 < total else { return }
+            next.insert(id)
+        }
+        excluded = next
+        UserDefaults.standard.set(Array(next), forKey: Self.excludedKey)
+        objectWillChange.send()
+        reload()
+    }
+
+    /// True when something is filtered out — the tab shows it, so a short list
+    /// is never mistaken for an empty week.
+    var isFiltered: Bool { !excluded.isEmpty }
+
     // MARK: - Loading
 
     func reload() {
         guard access == .granted else { return }
-        let hidden = Self.hiddenCalendarIdentifiers()
-        let calendars = store.calendars(for: .event).filter { !hidden.contains($0.calendarIdentifier) }
+        let calendars = activeCalendars()
         let start = Date()
         let predicate = store.predicateForEvents(
             withStart: start,
