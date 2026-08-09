@@ -27,9 +27,9 @@ jobs:
 
       - name: Проверить, что в бандле лежит то, что нужно
         run: |
-          APP=build/Cyclop.app
+          APP="build/CAVO Notch.app"
           VERSION="$(sed -n 's/^VERSION=//p' Scripts/version)"
-          test -x "$APP/Contents/MacOS/Cyclop"
+          test -x "$APP/Contents/MacOS/CAVO Notch"
           test -f "$APP/Contents/Resources/libcyclopmedia.dylib"
           # Локализации кладет тот же скрипт, и молча потерять их проще всего:
           # приложение с пропавшей таблицей запускается и выглядит целым.
