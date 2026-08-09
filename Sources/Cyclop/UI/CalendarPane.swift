@@ -279,6 +279,14 @@ struct CalendarPane: View {
             Text("Nothing on the calendar for the next day")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiary)
+            // The picker belongs here too, and this is the state that proves it:
+            // an empty week is exactly when someone wonders whether the tab is
+            // reading the right account. Reachable only from the agenda, it was
+            // invisible to anyone whose calendar happened to be clear — and to
+            // everyone whose meetings were all in a calendar they had filtered
+            // out, which is the one case a filter has to be undoable from.
+            calendarFilter
+                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var loginItem: NSMenuItem?
     private var saveShotsItem: NSMenuItem?
     private var notifyItem: NSMenuItem?
+    private var onboarding: OnboardingWindow?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -25,6 +26,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         // while the app happens to be frontmost is dropped without a trace.
         if Bundle.main.bundleIdentifier != nil {
             UNUserNotificationCenter.current().delegate = self
+        }
+
+        // First run only. An app that hides in the notch looks like a launch that
+        // failed, so the one thing worth interrupting for is where to point.
+        onboarding = OnboardingWindow(controller: controller)
+        if !OnboardingWindow.wasSeen {
+            // After the status item exists: the last step points at it, and an
+            // arrow at an icon that is not there yet explains nothing.
+            DispatchQueue.main.async { [weak self] in self?.onboarding?.show() }
         }
     }
 
@@ -140,6 +150,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         notify.state = TimerNotifier.isEnabled ? .on : .off
         menu.addItem(notify)
         notifyItem = notify
+
+        let howTo = NSMenuItem(
+            title: localized("How It Works"),
+            action: #selector(showOnboarding),
+            keyEquivalent: ""
+        )
+        howTo.target = self
+        menu.addItem(howTo)
 
         let openFolder = NSMenuItem(
             title: localized("Show Screenshots Folder"),
@@ -309,6 +327,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             TimerNotifier.cancel()
             TimerNotifier.clearDelivered()
         }
+    }
+
+    @objc private func showOnboarding() {
+        onboarding?.show()
     }
 
     @objc private func revealScreenshots() {

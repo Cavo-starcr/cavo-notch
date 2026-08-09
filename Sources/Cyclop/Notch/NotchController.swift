@@ -253,6 +253,7 @@ final class NotchController {
             // through a region the animation has not covered yet.
             applyActiveRect(open: true)
             withAnimation(Theme.openAnimation) { vm.isOpen = true }
+            openedSubject.send()
             vm.media.setActive(true)
             vm.calendar.setActive(true)
         } else {
@@ -277,6 +278,17 @@ final class NotchController {
     /// reads four sections and writes them one at a time, and a controller
     /// method per section would be four methods that only forward.
     var privacy: PrivacyMode? { viewModel?.privacy }
+
+    /// Fires the moment the panel unfolds, whatever caused it.
+    ///
+    /// The onboarding waits for this instead of asking the user to confirm they
+    /// managed the gesture: the only proof that someone found the notch is the
+    /// panel actually opening.
+    var didOpenPanel: AnyPublisher<Void, Never> { openedSubject.eraseToAnyPublisher() }
+    private let openedSubject = PassthroughSubject<Void, Never>()
+
+    /// Where the notch is on screen, for anything that needs to point at it.
+    var notchRect: CGRect? { viewModel?.geometry.hoverRect }
     /// Handed to the menu bar item, which is the only part of the app visible
     /// while the panel is collapsed — the notch itself stays black at rest.
     var timer: CountdownTimer? { viewModel?.timer }

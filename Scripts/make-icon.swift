@@ -1,15 +1,40 @@
 #!/usr/bin/env swift
 // Renders Resources/AppIcon.icns from code — no design tool in the loop.
-// CAVO mark: brand-blue squircle with the notch cut out of its top edge and the
-// double chevron in the middle. Drawn on a 1024 canvas and scaled down, so the
-// 16pt size is the same shape rather than a separate asset that drifts.
 // Usage: swift Scripts/make-icon.swift <output.icns>
+//
+// The mark is the app's own silhouette: the panel as it hangs out of the notch,
+// with the concave shoulders that melt into the top edge of the display. Same
+// geometry as `NotchShape` in the UI, kept in step by hand. A logo that is
+// literally the shape of the thing it names needs no explaining, and it tells
+// this product apart from the studio's other tools, which carry the chevron.
+//
+// Drawn on a 1024 canvas and scaled down, so 16 pt is the same shape rather than
+// a separate asset that drifts.
 import AppKit
 
 let outPath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "AppIcon.icns"
 let iconset = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("CAVONotch.iconset")
 try? FileManager.default.removeItem(at: iconset)
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
+
+/// The panel silhouette. `tr` is the concave shoulder, and the body is inset by
+/// it on both sides — the same contract `NotchShape` has in the UI.
+func notchPath(in rect: CGRect, topRadius tr: CGFloat, bottomRadius br: CGFloat) -> CGPath {
+    let left = rect.minX + tr
+    let right = rect.maxX - tr
+    let p = CGMutablePath()
+    // Quartz has y growing upwards, so the panel's top edge is maxY.
+    p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+    p.addQuadCurve(to: CGPoint(x: left, y: rect.maxY - tr), control: CGPoint(x: left, y: rect.maxY))
+    p.addLine(to: CGPoint(x: left, y: rect.minY + br))
+    p.addQuadCurve(to: CGPoint(x: left + br, y: rect.minY), control: CGPoint(x: left, y: rect.minY))
+    p.addLine(to: CGPoint(x: right - br, y: rect.minY))
+    p.addQuadCurve(to: CGPoint(x: right, y: rect.minY + br), control: CGPoint(x: right, y: rect.minY))
+    p.addLine(to: CGPoint(x: right, y: rect.maxY - tr))
+    p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.maxY), control: CGPoint(x: right, y: rect.maxY))
+    p.closeSubpath()
+    return p
+}
 
 func draw(size s: CGFloat) -> NSBitmapImageRep {
     let px = Int(s)
@@ -21,7 +46,7 @@ func draw(size s: CGFloat) -> NSBitmapImageRep {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     let ctx = NSGraphicsContext.current!.cgContext
-    let k = s / 1024  // everything below is authored on a 1024 canvas
+    let k = s / 1024  // authored on a 1024 canvas
 
     // Rounded-square body, macOS proportions.
     let body = CGRect(x: 100 * k, y: 100 * k, width: 824 * k, height: 824 * k)
@@ -44,43 +69,57 @@ func draw(size s: CGFloat) -> NSBitmapImageRep {
         options: []
     )
 
-    // The notch itself, cut into the top edge.
-    let notchW = 330 * k, notchH = 86 * k, r = 34 * k
-    let nx = body.midX - notchW / 2, ny = body.maxY - notchH
-    let notch = CGMutablePath()
-    notch.move(to: CGPoint(x: nx, y: body.maxY))
-    notch.addLine(to: CGPoint(x: nx, y: ny + r))
-    notch.addQuadCurve(to: CGPoint(x: nx + r, y: ny), control: CGPoint(x: nx, y: ny))
-    notch.addLine(to: CGPoint(x: nx + notchW - r, y: ny))
-    notch.addQuadCurve(to: CGPoint(x: nx + notchW, y: ny + r), control: CGPoint(x: nx + notchW, y: ny))
-    notch.addLine(to: CGPoint(x: nx + notchW, y: body.maxY))
-    notch.closeSubpath()
-    ctx.addPath(notch)
-    ctx.setFillColor(CGColor(red: 0.024, green: 0.055, blue: 0.133, alpha: 1))  // navy 950 #060E22
+    // The strip the panel hangs from — the top edge of a display. Without it the
+    // silhouette below reads as a plain tab instead of something cut into an edge.
+    let barH = 140 * k
+    ctx.setFillColor(CGColor(red: 0.024, green: 0.055, blue: 0.133, alpha: 1))  // navy 950
+    ctx.fill(CGRect(x: body.minX, y: body.maxY - barH, width: body.width, height: barH))
+
+    // The panel, unfolded out of that strip. Its top edge starts inside the strip
+    // so the shoulders have something to melt into, exactly as the real panel
+    // overlaps the menu bar.
+    // Wide and shallow, in the proportion the real panel has (620 × 208). A
+    // portrait silhouette here read as a drinking glass, not as a panel.
+    let panelW = 600 * k
+    let tr = 84 * k                     // concave shoulder
+    let br = 104 * k                    // rounded bottom
+    let panelTop = body.maxY - barH * 0.28
+    let panelBottom = body.minY + 300 * k
+    let placed = CGRect(
+        x: body.midX - panelW / 2,
+        y: panelBottom,
+        width: panelW,
+        height: panelTop - panelBottom
+    )
+    ctx.addPath(notchPath(in: placed, topRadius: tr, bottomRadius: br))
+    ctx.setFillColor(CGColor(gray: 1, alpha: 1))
     ctx.fillPath()
 
-    // The CAVO double chevron. Stroked rather than filled: one path, and the cap
-    // shape stays right at every size instead of the joins going ragged at 16pt.
-    let cx = body.midX, cy = body.midY - 24 * k
-    let arm = 112 * k          // horizontal reach of one chevron
-    let rise = 142 * k         // half-height
-    let gap = 176 * k          // distance between the two — wide enough that the
-                               // two stay separate marks at 16pt instead of merging
-    ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.97))
-    ctx.setLineWidth(64 * k)
-    ctx.setLineCap(.round)
-    ctx.setLineJoin(.round)
-    for offset in [-gap / 2 - arm / 2, gap / 2 - arm / 2] {
-        let x = cx + offset
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: x, y: cy + rise))
-        path.addLine(to: CGPoint(x: x + arm, y: cy))
-        path.addLine(to: CGPoint(x: x, y: cy - rise))
-        ctx.addPath(path)
-        ctx.strokePath()
+    // What the panel holds: a rail of tab dots and the content beside it. Skipped
+    // below 128 px — at 32 and 16 these turn to grey mush and the silhouette
+    // reads better clean.
+    if s >= 128 {
+        let inset = 92 * k
+        let d = 44 * k, gap = 30 * k
+        let railX = placed.minX + inset
+        let top = placed.maxY - barH * 0.55 - 96 * k
+        ctx.setFillColor(CGColor(red: 0.039, green: 0.400, blue: 1.000, alpha: 0.32))
+        var y = top
+        for _ in 0..<2 {
+            ctx.fillEllipse(in: CGRect(x: railX, y: y, width: d, height: d))
+            y -= d + gap
+        }
+        let blockX = railX + d + 48 * k
+        let blockW = placed.maxX - inset - blockX
+        var by = top
+        for (i, frac) in [1.0, 0.62].enumerated() {
+            ctx.setFillColor(CGColor(red: 0.039, green: 0.400, blue: 1.000, alpha: i == 0 ? 0.32 : 0.18))
+            ctx.fill(CGRect(x: blockX, y: by, width: blockW * frac, height: d))
+            by -= d + gap
+        }
     }
-    ctx.restoreGState()
 
+    ctx.restoreGState()
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }

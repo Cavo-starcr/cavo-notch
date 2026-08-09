@@ -128,3 +128,18 @@
 "Calendars" = "Calendars";
 "Choose which calendars appear here" = "Choose which calendars appear here";
 "Hidden calendars are not shown in this tab." = "Hidden calendars are not shown in this tab.";
+
+/* Onboarding */
+"How It Works" = "How It Works";
+"The notch is now a panel. A player, a shelf for files, the clipboard, your meetings, a translator, notes and a timer — all in the space above your screen that was doing nothing." = "The notch is now a panel. A player, a shelf for files, the clipboard, your meetings, a translator, notes and a timer — all in the space above your screen that was doing nothing.";
+"Move the pointer to the notch" = "Move the pointer to the notch";
+"Up to the top of the screen, in the middle. The panel unfolds by itself and folds back when the pointer leaves. Nothing to click." = "Up to the top of the screen, in the middle. The panel unfolds by itself and folds back when the pointer leaves. Nothing to click.";
+"Waiting for you…" = "Waiting for you…";
+"Pointer here" = "Pointer here";
+"Eight tabs on two rails" = "Eight tabs on two rails";
+"Hover an icon to switch. A pointer passing through switches nothing — it has to come to rest." = "Hover an icon to switch. A pointer passing through switches nothing — it has to come to rest.";
+"Everything else is in the menu bar" = "Everything else is in the menu bar";
+"The icon by the clock opens the panel, hides the contents of any tab for screen sharing, switches launch at login, and shows this walkthrough again." = "The icon by the clock opens the panel, hides the contents of any tab for screen sharing, switches launch at login, and shows this walkthrough again.";
+"One permission, and only on a button: the Calendar tab asks, nothing else does." = "One permission, and only on a button: the Calendar tab asks, nothing else does.";
+"Skip" = "Skip";
+"Next" = "Next";
