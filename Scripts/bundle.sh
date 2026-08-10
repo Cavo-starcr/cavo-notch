@@ -1,6 +1,7 @@
 #!/bin/bash
 # Builds Cyclop.app without Xcode: SwiftPM produces the binary, this script
-# assembles the bundle around it and ad-hoc signs it.
+# assembles the bundle around it and signs it (a keychain identity if present,
+# otherwise ad-hoc — see the signing step).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -72,7 +73,7 @@ clang -dynamiclib -fobjc-arc -O2 \
     -o "$APP/Contents/Resources/libcyclopmedia.dylib" \
     "$ROOT/Sources/CyclopMediaHelper/helper.m"
 
-echo "==> ad-hoc signing"
+echo "==> signing"
 # Расширенные атрибуты снимаются первыми. iCloud вешает на файлы
 # com.apple.FinderInfo, а codesign отказывается подписывать что-либо с ним —
 # «resource fork, Finder information, or similar detritus not allowed». Папка
@@ -85,7 +86,22 @@ xattr -cr "$APP"
 # бандл, про который codesign говорит «code object is not signed at all».
 # Заметить это можно было только по возвращающимся запросам TCC — то есть у
 # того, кто уже поставил приложение.
-codesign --force --deep --sign - "$APP" || {
+# Стабильное удостоверение вместо ad-hoc, если оно есть в связке. У ad-hoc
+# подписи «личность» приложения — это хеш кода, поэтому она меняется на каждой
+# пересборке, и macOS каждый раз спрашивает разрешения заново (TCC привязывает
+# грант к designated requirement). Самоподписанный сертификат даёт DR вида
+# «identifier + certificate leaf», не зависящий от хеша, — грант переживает
+# пересборки. На чужой машине и в CI сертификата нет: тихий откат на ad-hoc,
+# сборка не ломается. Настоящий Developer ID, когда появится, задаётся тем же
+# CODESIGN_ID и подписывается уже нотаризуемо.
+SIGN_ID="${CODESIGN_ID:-CAVO Notch Self-Signed}"
+if security find-certificate -c "$SIGN_ID" >/dev/null 2>&1; then
+    echo "    подпись удостоверением: $SIGN_ID"
+else
+    SIGN_ID="-"
+    echo "    удостоверение не найдено — ad-hoc"
+fi
+codesign --force --deep --sign "$SIGN_ID" "$APP" || {
     echo "!!! codesign не смог подписать бандл — см. вывод выше" >&2
     exit 1
 }
