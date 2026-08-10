@@ -171,3 +171,10 @@
 "Music in the closed notch" = "Музыка в сложенной челке";
 "Artwork and a level meter while something plays. Draws continuously, so it costs a little CPU." = "Обложка и индикатор, пока что-то играет. Рисуется постоянно, поэтому немного расходует процессор.";
 "Replay opening" = "Повторить открытие";
+
+/* Погода */
+"Weather in the notch" = "Погода в челке";
+"Temperature on the wings when nothing is playing. Checks Open-Meteo every 20 minutes — the app's only network call." = "Температура на крыльях, когда ничего не играет. Раз в 20 минут спрашивает Open-Meteo — единственный сетевой запрос приложения.";
+"City" = "Город";
+"City not found" = "Город не найден";
+"Could not reach the weather service — showing the last reading." = "Сервис погоды недоступен — показано последнее значение.";

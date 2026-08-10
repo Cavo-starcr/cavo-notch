@@ -9,9 +9,12 @@ import SwiftUI
 /// construction rather than by discipline.
 struct AppearancePane: View {
     @ObservedObject var appearance: Appearance
+    @ObservedObject private var weather = WeatherService.shared
 
     /// Drives the preview's unfold. Re-toggled to replay.
     @State private var previewOpen = true
+    /// The city as typed, before the geocoder has had its say.
+    @State private var cityDraft = WeatherService.shared.placeName
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -73,6 +76,30 @@ struct AppearancePane: View {
 
             Divider()
 
+            Toggle(isOn: $weather.enabled) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(localized("Weather in the notch"))
+                        .font(.system(size: 12.5))
+                    Text(localized("Temperature on the wings when nothing is playing. Checks Open-Meteo every 20 minutes — the app's only network call."))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+
+            if weather.enabled {
+                HStack(spacing: 6) {
+                    TextField(localized("City"), text: $cityDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .onSubmit { Task { await weather.setCity(cityDraft) } }
+                    weatherStatus
+                }
+                .padding(.leading, 2)
+            }
+
             Toggle(isOn: $appearance.liveMusic) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(localized("Music in the closed notch"))
@@ -89,6 +116,33 @@ struct AppearancePane: View {
             .controlSize(.small)
 
             Spacer(minLength: 0)
+        }
+    }
+
+    /// One glance answers "did it take": the resolved place proves the typo
+    /// went through, the warning says why the wing is empty.
+    @ViewBuilder
+    private var weatherStatus: some View {
+        switch weather.status {
+        case .looking:
+            ProgressView().controlSize(.small).scaleEffect(0.6)
+        case .cityNotFound:
+            Text(localized("City not found"))
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+        case .offline:
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .help(localized("Could not reach the weather service — showing the last reading."))
+        case .ok:
+            if let reading = weather.reading {
+                Text(reading.tempText)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+        case .idle:
+            EmptyView()
         }
     }
 

@@ -75,9 +75,11 @@ no binary asset to keep in sync.
 
 ## Privacy
 
-Nothing leaves the machine. No accounts, no telemetry, no network calls of its
-own. The one permission the app ever asks for is Calendar, and only when you
-press the button on the Calendar tab. Track information comes from macOS's own
+Nothing leaves the machine. No accounts, no telemetry, and no network calls —
+with one opt-in exception: the weather switch, off by default, asks Open-Meteo
+for the temperature of a city you type, every 20 minutes, sending nothing but
+coordinates. The one permission the app ever asks for is Calendar, and only when
+you press the button on the Calendar tab. Track information comes from macOS's own
 Now Playing feed rather than from any player's API.
 
 Screenshots saved from the clipboard live in

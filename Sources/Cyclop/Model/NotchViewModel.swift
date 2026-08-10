@@ -92,6 +92,7 @@ final class NotchViewModel: ObservableObject {
     let snippets: SnippetStore
     let notes: NoteStore
     let timer = CountdownTimer()
+    let weather = WeatherService.shared
     /// Shared by every pane that shows something worth not showing.
     let privacy = PrivacyMode()
 
@@ -165,6 +166,15 @@ final class NotchViewModel: ObservableObject {
         Appearance.shared.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+
+        // A weather reading lands about three times an hour; repainting the
+        // collapsed strip for it is the cheapest redraw in the app.
+        weather.objectWillChange
+            .sink { [weak self] _ in
+                guard let self, !self.isOpen else { return }
+                self.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     /// The collapsed-notch music strip: on, playing, and the panel closed.
@@ -175,10 +185,19 @@ final class NotchViewModel: ObservableObject {
         !isOpen && !isDropTargeted && Appearance.shared.liveMusic && media.track != nil
     }
 
+    /// Weather on the wings, when its switch is on and there is a reading.
+    /// Music outranks it: a track is something happening, weather merely is.
+    var weatherStripActive: Bool {
+        !isOpen && !isDropTargeted && !musicStripActive
+            && weather.enabled && weather.reading != nil
+    }
+
+    var stripActive: Bool { musicStripActive || weatherStripActive }
+
     /// Size of the visible body for the current state.
     var bodySize: CGSize {
         if isOpen || isDropTargeted { return geometry.expandedSize }
-        if musicStripActive {
+        if stripActive {
             // Wings wide enough for a 17 pt artwork and the meter, and a chin a
             // few points deeper than the cutout — the droop is what makes it
             // read as an island rather than a stretched notch.

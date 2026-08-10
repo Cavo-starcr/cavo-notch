@@ -172,3 +172,10 @@
 "Music in the closed notch" = "Music in the closed notch";
 "Artwork and a level meter while something plays. Draws continuously, so it costs a little CPU." = "Artwork and a level meter while something plays. Draws continuously, so it costs a little CPU.";
 "Replay opening" = "Replay opening";
+
+/* Weather */
+"Weather in the notch" = "Weather in the notch";
+"Temperature on the wings when nothing is playing. Checks Open-Meteo every 20 minutes — the app's only network call." = "Temperature on the wings when nothing is playing. Checks Open-Meteo every 20 minutes — the app's only network call.";
+"City" = "City";
+"City not found" = "City not found";
+"Could not reach the weather service — showing the last reading." = "Could not reach the weather service — showing the last reading.";

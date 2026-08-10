@@ -15,9 +15,19 @@ struct NotchContentView: View {
             panelBody
                 .frame(width: size.width + 2 * topRadius, height: size.height)
                 .shadow(
-                    color: .black.opacity(isOpen ? 0.5 : (vm.musicStripActive ? 0.35 : 0)),
+                    color: .black.opacity(isOpen ? 0.5 : (vm.stripActive ? 0.35 : 0)),
                     radius: appearance.shadowRadius(open: isOpen),
                     y: 8
+                )
+                // The Sapphire move: while the strip is live, a second, tinted
+                // shadow lets the accent spill onto the desktop under the island
+                // — ambient light from the thing that is playing. A flourish, so
+                // calm motion keeps the desktop dark.
+                .shadow(
+                    color: vm.musicStripActive && appearance.allowsPerpetualMotion
+                        ? appearance.tint.opacity(0.30) : .clear,
+                    radius: 14,
+                    y: 6
                 )
 
             VStack(spacing: 0) {
@@ -82,6 +92,12 @@ struct NotchContentView: View {
                 artworkThumb
                     .padding(.leading, 9)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
+            } else if vm.weatherStripActive, let reading = vm.weather.reading {
+                Image(systemName: reading.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .symbolRenderingMode(.multicolor)
+                    .padding(.leading, 11)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
             Spacer(minLength: 0)
             Color.clear.frame(width: vm.geometry.notchSize.width, height: 1)
@@ -91,13 +107,28 @@ struct NotchContentView: View {
                     .padding(.trailing, 16)
                     .transition(.opacity)
             } else if vm.musicStripActive {
-                EqualizerBars(isAnimating: vm.media.isPlaying && appearance.allowsPerpetualMotion, color: appearance.tint)
+                // Core Animation, not SwiftUI: this is the one animation that
+                // runs while the panel is collapsed, so it plays on the render
+                // server and costs the app nothing per frame.
+                WaveformBars(
+                    isPlaying: vm.media.isPlaying && appearance.allowsPerpetualMotion,
+                    color: appearance.tint
+                )
+                .frame(width: 23, height: 13)
+                .padding(.trailing, 12)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            } else if vm.weatherStripActive, let reading = vm.weather.reading {
+                Text(reading.tempText)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
                     .padding(.trailing, 12)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
         .frame(height: vm.geometry.notchSize.height)
         .animation(Theme.openAnimation, value: vm.musicStripActive)
+        .animation(Theme.openAnimation, value: vm.weatherStripActive)
     }
 
     private var artworkThumb: some View {
@@ -142,10 +173,22 @@ struct NotchContentView: View {
         case .snippets:
             counter(vm.snippets.items.count)
         case .calendar:
-            if let next = vm.calendar.next {
-                Text(CalendarPane.countdown(to: next, from: vm.calendar.now))
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(next.isRunning ? Color.white.opacity(0.8) : Theme.tertiary)
+            HStack(spacing: 10) {
+                if let reading = vm.weather.reading, vm.weather.enabled {
+                    HStack(spacing: 4) {
+                        Image(systemName: reading.symbol)
+                            .font(.system(size: 9, weight: .semibold))
+                            .symbolRenderingMode(.multicolor)
+                        Text(reading.tempText)
+                            .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Theme.secondary)
+                    }
+                }
+                if let next = vm.calendar.next {
+                    Text(CalendarPane.countdown(to: next, from: vm.calendar.now))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(next.isRunning ? Color.white.opacity(0.8) : Theme.tertiary)
+                }
             }
         case .translate:
             // Nothing: the columns name both languages already, and the strip
