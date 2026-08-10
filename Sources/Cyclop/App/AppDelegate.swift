@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import ServiceManagement
+import SwiftUI
 import UserNotifications
 
 @MainActor
@@ -15,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var saveShotsItem: NSMenuItem?
     private var notifyItem: NSMenuItem?
     private var onboarding: OnboardingWindow?
+    private var appearanceWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -150,6 +152,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         notify.state = TimerNotifier.isEnabled ? .on : .off
         menu.addItem(notify)
         notifyItem = notify
+
+        let style = NSMenuItem(
+            title: localized("Appearance…"),
+            action: #selector(showAppearance),
+            keyEquivalent: ""
+        )
+        style.target = self
+        menu.addItem(style)
 
         let howTo = NSMenuItem(
             title: localized("How It Works"),
@@ -331,6 +341,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     @objc private func showOnboarding() {
         onboarding?.show()
+    }
+
+    /// The appearance window. Plain and non-floating, unlike the onboarding: it
+    /// is a settings window, and settings windows behave like windows.
+    @objc private func showAppearance() {
+        if appearanceWindow == nil {
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 660, height: 440),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            w.title = localized("Appearance")
+            w.contentView = NSHostingView(rootView: AppearancePane(appearance: Appearance.shared))
+            w.center()
+            w.isReleasedWhenClosed = false
+            appearanceWindow = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        appearanceWindow?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func revealScreenshots() {

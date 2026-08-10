@@ -146,3 +146,29 @@
 
 /* Название продукта — одинаково во всех языках, но ключ обязателен */
 "CAVO Notch" = "CAVO Notch";
+
+/* Appearance */
+"Appearance" = "Appearance";
+"Appearance…" = "Appearance…";
+"Border" = "Border";
+"Accent" = "Accent";
+"Motion" = "Motion";
+"Material" = "Material";
+"None" = "None";
+"Hairline" = "Hairline";
+"Glow" = "Glow";
+"Moving gradient" = "Moving gradient";
+"Blue" = "Blue";
+"Teal" = "Teal";
+"Violet" = "Violet";
+"Amber" = "Amber";
+"Mono" = "Mono";
+"From artwork" = "From artwork";
+"Calm" = "Calm";
+"Normal" = "Normal";
+"Maximum" = "Maximum";
+"Solid black" = "Solid black";
+"Glass" = "Glass";
+"Music in the closed notch" = "Music in the closed notch";
+"Artwork and a level meter while something plays. Draws continuously, so it costs a little CPU." = "Artwork and a level meter while something plays. Draws continuously, so it costs a little CPU.";
+"Replay opening" = "Replay opening";

@@ -1,14 +1,24 @@
 import SwiftUI
 
+/// What the views actually read.
+///
+/// The animations forward to `Appearance`, where the user's motion level and the
+/// system's reduce-motion setting have already been folded in — so every one of
+/// the call sites scattered through the panes obeys both without knowing either
+/// exists. The colours that do not depend on a choice stay as plain constants.
+@MainActor
 enum Theme {
-    static let openAnimation = Animation.spring(response: 0.27, dampingFraction: 0.82)
-    static let contentAnimation = Animation.easeOut(duration: 0.16)
+    static var openAnimation: Animation { Appearance.shared.openAnimation }
+    static var contentAnimation: Animation { Appearance.shared.contentAnimation }
     /// Pane switching: the outgoing pane leaves faster than the incoming one
     /// arrives, so the two are never both half-visible for long.
-    static let paneAnimation = Animation.easeOut(duration: 0.18)
-    static let paneIn = Animation.easeOut(duration: 0.20).delay(0.04)
-    static let paneOut = Animation.easeIn(duration: 0.12)
-    static let artworkAnimation = Animation.easeOut(duration: 0.28)
+    static var paneAnimation: Animation { Appearance.shared.contentAnimation }
+    static var paneIn: Animation { Appearance.shared.contentAnimation.delay(0.04) }
+    static var paneOut: Animation { .easeIn(duration: 0.12) }
+    static var artworkAnimation: Animation { Appearance.shared.flourishAnimation }
+
+    /// The accent, after the artwork mode and fallbacks have had their say.
+    static var tint: Color { Appearance.shared.tint }
 
     static let collapsedTopRadius: CGFloat = 6
     static let collapsedBottomRadius: CGFloat = 9
@@ -35,7 +45,10 @@ struct NotchButtonStyle: ButtonStyle {
             .background(
                 Circle().fill(prominent ? Theme.surfaceHover : Color.clear)
             )
-            .opacity(configuration.isPressed ? 0.55 : 1)
+            // Pressed state is feedback, not decoration: a slight sink reads as
+            // "heard you" the way opacity alone never quite does.
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Circle())
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }

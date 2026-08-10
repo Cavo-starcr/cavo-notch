@@ -139,11 +139,52 @@ final class NotchViewModel: ObservableObject {
                 }
                 .store(in: &cancellables)
         }
+
+        // The collapsed strip is the one thing that draws while the panel is
+        // closed, so media changes must reach the view even then — but only
+        // while the switch is on: with it off, the old "collapsed panel is a
+        // black shape, no redraws" contract stands untouched.
+        media.objectWillChange
+            .sink { [weak self] _ in
+                guard let self, !self.isOpen, Appearance.shared.liveMusic else { return }
+                self.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        // The accent that follows the artwork. Derived here, off the artwork
+        // publisher, so the appearance store never has to know what artwork is.
+        media.$artwork
+            .receive(on: RunLoop.main)
+            .sink { artwork in
+                Appearance.shared.artworkAccent = artwork?.accentColor
+            }
+            .store(in: &cancellables)
+
+        // Flipping any appearance switch repaints the panel — including the
+        // strip appearing or vanishing when Live Music is toggled while closed.
+        Appearance.shared.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+    }
+
+    /// The collapsed-notch music strip: on, playing, and the panel closed.
+    ///
+    /// The one place the resting notch is allowed to be more than a black
+    /// rectangle, and only because the owner flipped the switch that says so.
+    var musicStripActive: Bool {
+        !isOpen && !isDropTargeted && Appearance.shared.liveMusic && media.track != nil
     }
 
     /// Size of the visible body for the current state.
     var bodySize: CGSize {
-        isOpen || isDropTargeted ? geometry.expandedSize : geometry.notchSize
+        if isOpen || isDropTargeted { return geometry.expandedSize }
+        if musicStripActive {
+            // Wings wide enough for a 17 pt artwork and the meter, and a chin a
+            // few points deeper than the cutout — the droop is what makes it
+            // read as an island rather than a stretched notch.
+            return CGSize(width: geometry.notchSize.width + 128, height: geometry.notchSize.height + 6)
+        }
+        return geometry.notchSize
     }
 
     /// Off switch for people who copy images all day and do not want them kept.

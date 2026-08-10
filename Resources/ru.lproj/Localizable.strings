@@ -145,3 +145,29 @@
 
 /* Название продукта — одинаково во всех языках, но ключ обязателен */
 "CAVO Notch" = "CAVO Notch";
+
+/* Оформление */
+"Appearance" = "Оформление";
+"Appearance…" = "Оформление…";
+"Border" = "Обводка";
+"Accent" = "Акцент";
+"Motion" = "Движение";
+"Material" = "Материал";
+"None" = "Без обводки";
+"Hairline" = "Тонкая линия";
+"Glow" = "Свечение";
+"Moving gradient" = "Бегущий градиент";
+"Blue" = "Синий";
+"Teal" = "Бирюзовый";
+"Violet" = "Фиолетовый";
+"Amber" = "Янтарный";
+"Mono" = "Монохром";
+"From artwork" = "Из обложки";
+"Calm" = "Спокойно";
+"Normal" = "Обычно";
+"Maximum" = "Максимум";
+"Solid black" = "Плотный чёрный";
+"Glass" = "Стекло";
+"Music in the closed notch" = "Музыка в сложенной челке";
+"Artwork and a level meter while something plays. Draws continuously, so it costs a little CPU." = "Обложка и индикатор, пока что-то играет. Рисуется постоянно, поэтому немного расходует процессор.";
+"Replay opening" = "Повторить открытие";

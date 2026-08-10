@@ -60,7 +60,9 @@ struct TimerPane: View {
     private var ringColor: Color {
         if timer.isFinished { return Color(red: 1, green: 0.72, blue: 0.28) }
         if timer.phase == .rest { return Color(red: 0.42, green: 0.85, blue: 0.55) }
-        return timer.isPaused ? Theme.secondary : .white
+        // The running ring carries the accent: it is the one live element on the
+        // tab, and the accent exists to mark exactly that kind of thing.
+        return timer.isPaused ? Theme.secondary : Theme.tint
     }
 
     private var label: String {

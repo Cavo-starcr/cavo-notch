@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NotchContentView: View {
     @ObservedObject var vm: NotchViewModel
+    @ObservedObject private var appearance = Appearance.shared
 
     private var isOpen: Bool { vm.isOpen || vm.isDropTargeted }
     private var size: CGSize { vm.bodySize }
@@ -11,13 +12,13 @@ struct NotchContentView: View {
         // The shape is wider than the body by `topRadius` on each side: that
         // slack is where the concave shoulders live, so it must not be clipped.
         ZStack(alignment: .top) {
-            NotchShape(
-                topRadius: topRadius,
-                bottomRadius: isOpen ? Theme.openBottomRadius : Theme.collapsedBottomRadius
-            )
-            .fill(Color.black)
-            .frame(width: size.width + 2 * topRadius, height: size.height)
-            .shadow(color: .black.opacity(isOpen ? 0.5 : 0), radius: 18, y: 8)
+            panelBody
+                .frame(width: size.width + 2 * topRadius, height: size.height)
+                .shadow(
+                    color: .black.opacity(isOpen ? 0.5 : (vm.musicStripActive ? 0.35 : 0)),
+                    radius: appearance.shadowRadius(open: isOpen),
+                    y: 8
+                )
 
             VStack(spacing: 0) {
                 header
@@ -33,6 +34,26 @@ struct NotchContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(Theme.openAnimation, value: isOpen)
         .animation(Theme.paneAnimation, value: vm.tab)
+    }
+
+    /// The black shape, its material and its outline. The glass variant blurs
+    /// the wallpaper through the window; the border is whatever `Appearance`
+    /// says it is, and both apply to the collapsed strip as much as the panel.
+    private var panelBody: some View {
+        let bottomRadius = isOpen ? Theme.openBottomRadius : Theme.collapsedBottomRadius
+        let shape = NotchShape(topRadius: topRadius, bottomRadius: bottomRadius)
+        return ZStack {
+            if appearance.usesGlass {
+                BehindWindowBlur().clipShape(shape)
+            }
+            shape.fill(appearance.panelFill)
+            PanelBorder(
+                appearance: appearance,
+                topRadius: topRadius,
+                bottomRadius: bottomRadius,
+                isOpen: isOpen
+            )
+        }
     }
 
     // MARK: - Header
@@ -53,6 +74,14 @@ struct NotchContentView: View {
                     .padding(.leading, 16)
                     .id(vm.tab)
                     .transition(.opacity)
+            } else if vm.musicStripActive {
+                // The Dynamic Island move: artwork on one wing of the notch,
+                // level meter on the other, and the physical cutout untouched
+                // between them. No title — at this size a name is clutter, and
+                // the artwork *is* the identity of what is playing.
+                artworkThumb
+                    .padding(.leading, 9)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
             Spacer(minLength: 0)
             Color.clear.frame(width: vm.geometry.notchSize.width, height: 1)
@@ -61,9 +90,37 @@ struct NotchContentView: View {
                 trailing
                     .padding(.trailing, 16)
                     .transition(.opacity)
+            } else if vm.musicStripActive {
+                EqualizerBars(isAnimating: vm.media.isPlaying && appearance.allowsPerpetualMotion, color: appearance.tint)
+                    .padding(.trailing, 12)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
         .frame(height: vm.geometry.notchSize.height)
+        .animation(Theme.openAnimation, value: vm.musicStripActive)
+    }
+
+    private var artworkThumb: some View {
+        Group {
+            if let artwork = vm.media.artwork {
+                Image(nsImage: artwork)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Theme.surface)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .font(.system(size: 8))
+                            .foregroundStyle(Theme.tertiary)
+                    )
+            }
+        }
+        .frame(width: 17, height: 17)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        // Track identity change, not every artwork byte: the crossfade should
+        // fire when the song changes, not when the same art re-decodes.
+        .id(vm.media.track?.key)
     }
 
     @ViewBuilder
