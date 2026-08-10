@@ -28,7 +28,24 @@ struct TimerPane: View {
 
             Circle()
                 .trim(from: 0, to: timer.isIdle ? 0 : timer.progress)
-                .stroke(ringColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                // A gradient along the sweep, dim at the tail and full at the
+                // head: the ring reads as travelling, not merely filling.
+                .stroke(
+                    AngularGradient(
+                        colors: [ringColor.opacity(0.35), ringColor],
+                        center: .center,
+                        startAngle: .degrees(0),
+                        endAngle: .degrees(360 * max(timer.progress, 0.001))
+                    ),
+                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                )
+                // Glow is a flourish, so it obeys the motion level: maximum gets
+                // the halo, calm gets a clean line.
+                .shadow(
+                    color: Appearance.shared.effectiveMotion == .max && timer.isRunning
+                        ? ringColor.opacity(0.55) : .clear,
+                    radius: 7
+                )
                 // Twelve o'clock, clockwise: a ring that starts at three and has
                 // to be read anti-clockwise is a puzzle, not a clock.
                 .rotationEffect(.degrees(-90))

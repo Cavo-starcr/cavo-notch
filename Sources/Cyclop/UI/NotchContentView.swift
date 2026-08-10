@@ -169,11 +169,15 @@ struct NotchContentView: View {
 
     // MARK: - Body
 
+    /// One namespace across both rails, so the selection pill slides between
+    /// columns as well as within one.
+    @Namespace private var railSelection
+
     private var content: some View {
         HStack(spacing: 14) {
-            Rail(vm: vm, tabs: NotchViewModel.Tab.leftRail)
+            Rail(vm: vm, tabs: NotchViewModel.Tab.leftRail, selection: railSelection)
             panes
-            Rail(vm: vm, tabs: NotchViewModel.Tab.rightRail)
+            Rail(vm: vm, tabs: NotchViewModel.Tab.rightRail, selection: railSelection)
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 14)
@@ -249,6 +253,8 @@ private struct Rail: View {
     @ObservedObject var vm: NotchViewModel
     /// Which icons this rail carries — there are two rails now, one per side.
     let tabs: [NotchViewModel.Tab]
+    /// Shared with the other rail, so there is exactly one pill in the world.
+    let selection: Namespace.ID
 
     @State private var hovered: NotchViewModel.Tab?
 
@@ -265,10 +271,20 @@ private struct Rail: View {
                     Image(systemName: tab.symbol)
                         .font(.system(size: 12, weight: .medium))
                         .frame(width: 30, height: 24)
-                        .background(
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(fill(for: tab))
-                        )
+                        .background {
+                            // The selection is one pill that travels, not a
+                            // highlight that blinks out here and in there:
+                            // matched geometry turns the switch into movement,
+                            // and movement is what says "same thing, new place".
+                            if vm.tab == tab {
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .fill(Theme.tint.opacity(0.24))
+                                    .matchedGeometryEffect(id: "rail.selection", in: selection)
+                            } else if hovered == tab {
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .fill(Theme.surface)
+                            }
+                        }
                         .foregroundStyle(vm.tab == tab ? Color.white : Theme.tertiary)
                         .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                         // A render-time transform. Growing the frame instead
@@ -290,6 +306,7 @@ private struct Rail: View {
         .frame(width: 30)
         .frame(maxHeight: .infinity, alignment: .center)
         .animation(Theme.contentAnimation, value: hovered)
+        .animation(Theme.openAnimation, value: vm.tab)
         // Moving to another icon cancels the pending switch along with the
         // task, so only the icon actually rested on ever wins.
         .task(id: hovered) {
@@ -300,8 +317,4 @@ private struct Rail: View {
         }
     }
 
-    private func fill(for tab: NotchViewModel.Tab) -> Color {
-        if vm.tab == tab { return Theme.surfaceHover }
-        return hovered == tab ? Theme.surface : .clear
-    }
 }

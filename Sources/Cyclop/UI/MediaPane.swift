@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MediaPane: View {
     @ObservedObject var media: MediaController
+    @ObservedObject private var appearance = Appearance.shared
 
     @State private var scrubHover = false
     /// Set while dragging, so the bar follows the finger instead of the clock.
@@ -15,6 +16,7 @@ struct MediaPane: View {
         if let track = media.track {
             HStack(spacing: 18) {
                 artwork(for: track)
+                    .zIndex(1)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(track.title)
                         .font(.system(size: 16, weight: .semibold))
@@ -34,11 +36,33 @@ struct MediaPane: View {
                 .frame(height: blockHeight)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // The room takes the colour of the record: the artwork itself,
+            // blown up and blurred far past recognition, sits behind the pane
+            // as ambient light. A still image — it costs one render per track
+            // change, not one per frame — and it is what makes the tab feel
+            // like the music's place rather than a form about the music.
+            .background(ambient)
             // Title and artist arrive together, so the whole column can cross-
             // fade as one unit when the track changes.
             .animation(Theme.artworkAnimation, value: track.key)
         } else {
             emptyState
+        }
+    }
+
+    @ViewBuilder
+    private var ambient: some View {
+        if let image = media.artwork {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .scaleEffect(1.6)
+                .blur(radius: 46)
+                .saturation(1.5)
+                .opacity(0.32)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+                .id(media.track?.key)
         }
     }
 
@@ -105,7 +129,12 @@ struct MediaPane: View {
                     // cursor at once. Smoothness comes from the tick rate
                     // instead, which keeps each step well under a pixel.
                     Capsule()
-                        .fill(Color.white.opacity(0.9))
+                        .fill(
+                            LinearGradient(
+                                colors: [Theme.tint.opacity(0.65), Theme.tint],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
                         .frame(width: filled, height: height)
                     if scrubHover {
                         Circle()
